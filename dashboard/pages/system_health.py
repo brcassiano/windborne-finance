@@ -2,15 +2,15 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from database import get_db_connection
+from database import get_db_engine
 
 
 def show():
     """System health and ETL monitoring"""
     st.markdown("## 🔧 System Health & ETL Monitoring")
     
-    conn = get_db_connection()
-    if not conn:
+    engine = get_db_engine()
+    if not engine:
         st.error("❌ Cannot connect to database")
         return
     
@@ -28,7 +28,7 @@ def show():
             FROM etl_runs
             ORDER BY run_date DESC
             LIMIT 1
-        """, conn)
+        """, engine)
         
         if not df.empty:
             st.markdown("### 📊 Latest Execution Status")
@@ -82,7 +82,7 @@ def show():
             FROM etl_runs
             WHERE run_date > NOW() - INTERVAL '30 days'
             ORDER BY run_date DESC
-        """, conn)
+        """, engine)
         
         if not df_history.empty:
             # Apply styling to status column
@@ -112,7 +112,7 @@ def show():
                 FROM etl_runs
                 WHERE run_date > NOW() - INTERVAL '30 days'
                 ORDER BY run_date ASC
-            """, conn)
+            """, engine)
             
             if not chart_data.empty:
                 fig = go.Figure()
@@ -177,6 +177,3 @@ def show():
         import traceback
         with st.expander("🐛 Debug Info"):
             st.code(traceback.format_exc())
-    finally:
-        if conn:
-            conn.close()

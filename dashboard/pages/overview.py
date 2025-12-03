@@ -2,13 +2,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from database import get_db_connection
+from database import get_db_engine
 
 
 def show():
     """Display overview page with key metrics"""
-    conn = get_db_connection()
-    if not conn:
+    engine = get_db_engine()
+    if not engine:
         st.error("❌ Cannot connect to database")
         return
     
@@ -17,28 +17,28 @@ def show():
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            df = pd.read_sql("SELECT COUNT(*) as count FROM companies", conn)
+            df = pd.read_sql("SELECT COUNT(*) as count FROM companies", engine)
             st.metric("🏢 Companies", df['count'].iloc[0])
         
         with col2:
             df = pd.read_sql("""
                 SELECT COUNT(DISTINCT fiscal_year) as count 
                 FROM calculated_metrics
-            """, conn)
+            """, engine)
             st.metric("📅 Years of Data", df['count'].iloc[0])
         
         with col3:
             df = pd.read_sql("""
                 SELECT COUNT(*) as count 
                 FROM calculated_metrics
-            """, conn)
+            """, engine)
             st.metric("📊 Total Metrics", f"{df['count'].iloc[0]:,}")
         
         with col4:
             df = pd.read_sql("""
                 SELECT run_date FROM etl_runs 
                 ORDER BY run_date DESC LIMIT 1
-            """, conn)
+            """, engine)
             if not df.empty:
                 last_run = df['run_date'].iloc[0]
                 st.metric("🔄 Last Update", last_run.strftime("%m/%d/%Y"))
@@ -80,7 +80,7 @@ def show():
             ORDER BY c.symbol
         """
         
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(query, engine)
         
         if not df.empty:
             # Show year info
@@ -178,6 +178,3 @@ def show():
         import traceback
         with st.expander("🐛 Debug Info"):
             st.code(traceback.format_exc())
-    finally:
-        if conn:
-            conn.close()

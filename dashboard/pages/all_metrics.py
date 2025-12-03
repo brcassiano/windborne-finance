@@ -2,15 +2,15 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from database import get_db_connection
+from database import get_db_engine
 
 
 def show():
     """Show all metrics in table format"""
     st.markdown("## 📊 All Financial Metrics")
     
-    conn = get_db_connection()
-    if not conn:
+    engine = get_db_engine()
+    if not engine:
         st.error("❌ Cannot connect to database")
         return
     
@@ -19,7 +19,7 @@ def show():
         col1, col2 = st.columns(2)
         
         with col1:
-            companies_df = pd.read_sql("SELECT DISTINCT symbol FROM companies ORDER BY symbol", conn)
+            companies_df = pd.read_sql("SELECT DISTINCT symbol FROM companies ORDER BY symbol", engine)
             selected_companies = st.multiselect(
                 "Companies",
                 companies_df['symbol'].tolist(),
@@ -30,7 +30,7 @@ def show():
             years_df = pd.read_sql("""
                 SELECT DISTINCT fiscal_year FROM calculated_metrics 
                 ORDER BY fiscal_year DESC
-            """, conn)
+            """, engine)
             selected_years = st.multiselect(
                 "Years",
                 years_df['fiscal_year'].tolist(),
@@ -58,7 +58,7 @@ def show():
             ORDER BY c.symbol, cm.fiscal_year DESC, cm.metric_category, cm.metric_name
         """
         
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(query, engine)
         
         if df.empty:
             st.warning("⚠️ No data available")
@@ -93,6 +93,3 @@ def show():
         
     except Exception as e:
         st.error(f"❌ Error: {e}")
-    finally:
-        if conn:
-            conn.close()

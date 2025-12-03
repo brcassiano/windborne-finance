@@ -2,15 +2,15 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from database import get_db_connection
+from database import get_db_engine
 
 
 def show():
     """Display liquidity metrics"""
     st.markdown("## 💧 Liquidity & Solvency")
     
-    conn = get_db_connection()
-    if not conn:
+    engine = get_db_engine()
+    if not engine:
         st.error("❌ Cannot connect to database")
         return
     
@@ -30,7 +30,7 @@ def show():
             ORDER BY c.symbol, cm.fiscal_year
         """
         
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(query, engine)
         
         if df.empty:
             st.warning("⚠️ No liquidity data available")
@@ -86,6 +86,3 @@ def show():
         
     except Exception as e:
         st.error(f"❌ Error: {e}")
-    finally:
-        if conn:
-            conn.close()

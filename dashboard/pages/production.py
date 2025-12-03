@@ -5,6 +5,50 @@ import pandas as pd
 
 def show():
     """About & Production Strategy"""
+    
+    # CSS customizado para esta página
+    st.markdown("""
+    <style>
+        .code-box {
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            overflow-x: auto;
+            white-space: pre;
+        }
+        
+        .production-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            color: white;
+        }
+        
+        .production-box h3 {
+            margin: 0;
+            color: white;
+        }
+        
+        .warning-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            color: #856404;
+        }
+        
+        .warning-box h4 {
+            margin-top: 0;
+            color: #856404;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
     st.markdown("## 📚 Production Strategy & Architecture")
     
     st.markdown("""
@@ -698,7 +742,7 @@ def _render_question_3():
             def sync_to_bigquery():
                 # Extract from PostgreSQL
                 pg_conn = psycopg2.connect(...)
-                df = pd.read_sql("SELECT * FROM calculated_metrics", pg_conn)
+                df = pd.read_sql("SELECT * FROM calculated_metrics", engine)
                 
                 # Load to BigQuery
                 bq_client = bigquery.Client()
