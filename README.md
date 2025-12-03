@@ -8,6 +8,16 @@ Automated financial analysis pipeline using Alpha Vantage API, PostgreSQL, n8n, 
 - **Database**: PostgreSQL 15
 - **Orchestration**: n8n
 - **Dashboard**: Streamlit
+# WindBorne Finance Automation
+
+Automated financial analysis pipeline using Alpha Vantage API, PostgreSQL, n8n, and Streamlit.
+
+## Tech Stack
+
+- **ETL**: Python 3.11
+- **Database**: PostgreSQL 15
+- **Orchestration**: n8n
+- **Dashboard**: Streamlit
 - **Monitoring**: Grafana
 - **Deployment**: Easypanel (Docker)
 
@@ -34,34 +44,46 @@ Automated financial analysis pipeline using Alpha Vantage API, PostgreSQL, n8n, 
 
 ### Environment Variables
 
-For ETL App:
+For ETL App (example):
+```env
 POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
 POSTGRES_DB=windborne_finance
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_password_here
 ALPHA_VANTAGE_API_KEY=your_api_key_here
+```
 
-For Dashboard App:
+For Dashboard App (example):
+```env
 POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
 POSTGRES_DB=windborne_finance
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_password_here
+```
 
 ## Project Structure
 
-├── etl/ # Python ETL pipeline
-│ ├── extractors/ # Alpha Vantage API client
-│ ├── transformers/ # Data transformation
-│ ├── loaders/ # PostgreSQL loader
-│ └── calculators/ # Financial metrics
-├── dashboard/ # Streamlit dashboard
-├── init-db/ # SQL schema
-└── grafana/ # Monitoring dashboards
+Use the tree below to quickly visualise the repository layout:
+
+```text
+windborne-finance/
+├── etl/                 # Python ETL pipeline
+│   ├── extractors/      # Alpha Vantage API client
+│   ├── transformers/    # Data transformation
+│   ├── loaders/         # PostgreSQL loader
+│   └── calculators/     # Financial metrics
+├── dashboard/           # Streamlit dashboard
+│   ├── app.py
+   └── requirements.txt
+├── init-db/             # SQL schema
+│   └── schema.sql
+└── grafana/             # Monitoring dashboards
+    └── dashboards/
+```
 
 ## License
 
 MIT
-EOF
 
