@@ -3,8 +3,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import psycopg2
-from sqlalchemy import create_engine
-import urllib.parse
 import os
 from datetime import datetime
 import time
@@ -70,10 +68,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# Database connections
-@st.cache_resource(ttl=60)
+# Database connection - NO CACHE to avoid "connection already closed"
 def get_db_connection():
-    """Get psycopg2 connection for test_connection only"""
+    """Get fresh psycopg2 connection for each query"""
     try:
         conn = psycopg2.connect(
             host=os.getenv('POSTGRES_HOST', 'postgres'),
@@ -88,29 +85,6 @@ def get_db_connection():
         return None
 
 
-@st.cache_resource(ttl=60)
-def get_db_engine():
-    """Get SQLAlchemy engine for pandas queries"""
-    try:
-        password = urllib.parse.quote_plus(os.getenv('POSTGRES_PASSWORD', ''))
-        host = os.getenv('POSTGRES_HOST', 'postgres')
-        port = os.getenv('POSTGRES_PORT', 5432)
-        database = os.getenv('POSTGRES_DB', 'windborne_finance')
-        user = os.getenv('POSTGRES_USER', 'postgres')
-        
-        connection_string = f"postgresql://{user}:{password}@{host}:{port}/{database}"
-        engine = create_engine(connection_string, pool_pre_ping=True)
-        
-        # Test connection
-        with engine.connect() as conn:
-            conn.execute("SELECT 1")
-        
-        return engine
-    except Exception as e:
-        st.error(f"❌ Database engine creation failed: {e}")
-        return None
-
-
 # Test connection
 def test_connection():
     conn = get_db_connection()
@@ -120,8 +94,11 @@ def test_connection():
             cur.execute("SELECT version();")
             version = cur.fetchone()
             cur.close()
+            conn.close()
             return True, f"PostgreSQL Connected"
         except Exception as e:
+            if conn:
+                conn.close()
             return False, str(e)
     return False, "Connection is None"
 
@@ -130,8 +107,8 @@ def show_system_health():
     """System health and ETL monitoring"""
     st.markdown("## 🔧 System Health & ETL Monitoring")
     
-    engine = get_db_engine()
-    if not engine:
+    conn = get_db_connection()
+    if not conn:
         st.error("❌ Cannot connect to database")
         return
     
@@ -149,7 +126,7 @@ def show_system_health():
             FROM etl_runs
             ORDER BY run_date DESC
             LIMIT 1
-        """, engine)
+        """, conn)
         
         if not df.empty:
             st.markdown("### 📊 Latest Execution Status")
@@ -203,7 +180,7 @@ def show_system_health():
             FROM etl_runs
             WHERE run_date > NOW() - INTERVAL '30 days'
             ORDER BY run_date DESC
-        """, engine)
+        """, conn)
         
         if not df_history.empty:
             # Apply styling to status column
@@ -233,7 +210,7 @@ def show_system_health():
                 FROM etl_runs
                 WHERE run_date > NOW() - INTERVAL '30 days'
                 ORDER BY run_date ASC
-            """, engine)
+            """, conn)
             
             if not chart_data.empty:
                 fig = go.Figure()
@@ -298,6 +275,9 @@ def show_system_health():
         import traceback
         with st.expander("🐛 Debug Info"):
             st.code(traceback.format_exc())
+    finally:
+        if conn:
+            conn.close()
 
 
 def show_about_production():
@@ -311,7 +291,7 @@ def show_about_production():
     
     # Current Architecture
     st.markdown("---")
-    st.markdown("### ✍🏼⚙️ Current Architecture Overview")
+    st.markdown("### 🏗️ Current Architecture Overview")
     
     col1, col2 = st.columns([3, 2])
     
@@ -762,22 +742,27 @@ Notification  Alert + Retry Logic
     
     st.markdown("#### 📊 Scaling Strategy")
     
-    scaling_data = pd.DataFrame({
-        'Stage': ['Current', 'Phase 1', 'Phase 2', 'Phase 3'],
-        'Companies': [3, 10, 50, 100],
-        'Daily API Calls': [9, 30, 150, 300],
-        'Strategy': [
-            'Free tier (25/day)',
-            'Smart caching + free tier',
-            'Paid tier $50/mo (75/min)',
-            'Paid tier $500/mo (unlimited)'
-        ],
-        'Cache Hit Rate': ['0%', '70%', '85%', '90%'],
-        'Effective Calls': [9, 9, 22, 30],
-        'Monthly Cost': ['$0', '$0', '$50', '$500']
-    })
-    
-    st.dataframe(scaling_data, use_container_width=True, hide_index=True)
+    conn = get_db_connection()
+    if conn:
+        try:
+            scaling_data = pd.DataFrame({
+                'Stage': ['Current', 'Phase 1', 'Phase 2', 'Phase 3'],
+                'Companies': [3, 10, 50, 100],
+                'Daily API Calls': [9, 30, 150, 300],
+                'Strategy': [
+                    'Free tier (25/day)',
+                    'Smart caching + free tier',
+                    'Paid tier $50/mo (75/min)',
+                    'Paid tier $500/mo (unlimited)'
+                ],
+                'Cache Hit Rate': ['0%', '70%', '85%', '90%'],
+                'Effective Calls': [9, 9, 22, 30],
+                'Monthly Cost': ['$0', '$0', '$50', '$500']
+            })
+            
+            st.dataframe(scaling_data, use_container_width=True, hide_index=True)
+        finally:
+            conn.close()
     
     st.info("""
     **💡 Key Insight:** With 90% cache hit rate (companies don't release statements daily), 
@@ -1396,8 +1381,8 @@ def main():
 
 def show_overview():
     """Overview page with key metrics"""
-    engine = get_db_engine()
-    if not engine:
+    conn = get_db_connection()
+    if not conn:
         st.error("❌ Cannot connect to database")
         return
     
@@ -1406,28 +1391,28 @@ def show_overview():
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            df = pd.read_sql("SELECT COUNT(*) as count FROM companies", engine)
+            df = pd.read_sql("SELECT COUNT(*) as count FROM companies", conn)
             st.metric("🏢 Companies", df['count'].iloc[0])
         
         with col2:
             df = pd.read_sql("""
                 SELECT COUNT(DISTINCT fiscal_year) as count 
                 FROM calculated_metrics
-            """, engine)
+            """, conn)
             st.metric("📅 Years of Data", df['count'].iloc[0])
         
         with col3:
             df = pd.read_sql("""
                 SELECT COUNT(*) as count 
                 FROM calculated_metrics
-            """, engine)
+            """, conn)
             st.metric("📊 Total Metrics", f"{df['count'].iloc[0]:,}")
         
         with col4:
             df = pd.read_sql("""
                 SELECT run_date FROM etl_runs 
                 ORDER BY run_date DESC LIMIT 1
-            """, engine)
+            """, conn)
             if not df.empty:
                 last_run = df['run_date'].iloc[0]
                 st.metric("🔄 Last Update", last_run.strftime("%m/%d/%Y"))
@@ -1469,7 +1454,7 @@ def show_overview():
             ORDER BY c.symbol
         """
         
-        df = pd.read_sql(query, engine)
+        df = pd.read_sql(query, conn)
         
         if not df.empty:
             # Show year info
@@ -1567,14 +1552,17 @@ def show_overview():
         import traceback
         with st.expander("🐛 Debug Info"):
             st.code(traceback.format_exc())
+    finally:
+        if conn:
+            conn.close()
 
 
 def show_profitability():
     """Profitability trends over time"""
     st.markdown("## 💰 Profitability Analysis")
     
-    engine = get_db_engine()
-    if not engine:
+    conn = get_db_connection()
+    if not conn:
         st.error("❌ Cannot connect to database")
         return
     
@@ -1585,7 +1573,7 @@ def show_profitability():
         with col1:
             companies_df = pd.read_sql("""
                 SELECT DISTINCT symbol FROM companies ORDER BY symbol
-            """, engine)
+            """, conn)
             selected_companies = st.multiselect(
                 "Select Companies",
                 companies_df['symbol'].tolist(),
@@ -1596,7 +1584,7 @@ def show_profitability():
             years_df = pd.read_sql("""
                 SELECT DISTINCT fiscal_year FROM calculated_metrics 
                 ORDER BY fiscal_year DESC
-            """, engine)
+            """, conn)
             selected_years = st.multiselect(
                 "Select Years",
                 years_df['fiscal_year'].tolist(),
@@ -1629,7 +1617,7 @@ def show_profitability():
             ORDER BY c.symbol, cm.fiscal_year
         """
         
-        df = pd.read_sql(query, engine)
+        df = pd.read_sql(query, conn)
         
         if df.empty:
             st.warning("⚠️ No data found for selected filters")
@@ -1664,14 +1652,17 @@ def show_profitability():
             
     except Exception as e:
         st.error(f"❌ Error: {e}")
+    finally:
+        if conn:
+            conn.close()
 
 
 def show_liquidity():
     """Liquidity metrics"""
     st.markdown("## 💧 Liquidity & Solvency")
     
-    engine = get_db_engine()
-    if not engine:
+    conn = get_db_connection()
+    if not conn:
         st.error("❌ Cannot connect to database")
         return
     
@@ -1691,7 +1682,7 @@ def show_liquidity():
             ORDER BY c.symbol, cm.fiscal_year
         """
         
-        df = pd.read_sql(query, engine)
+        df = pd.read_sql(query, conn)
         
         if df.empty:
             st.warning("⚠️ No liquidity data available")
@@ -1747,14 +1738,17 @@ def show_liquidity():
         
     except Exception as e:
         st.error(f"❌ Error: {e}")
+    finally:
+        if conn:
+            conn.close()
 
 
 def show_all_metrics():
     """Show all metrics in table format"""
     st.markdown("## 📊 All Financial Metrics")
     
-    engine = get_db_engine()
-    if not engine:
+    conn = get_db_connection()
+    if not conn:
         st.error("❌ Cannot connect to database")
         return
     
@@ -1763,7 +1757,7 @@ def show_all_metrics():
         col1, col2 = st.columns(2)
         
         with col1:
-            companies_df = pd.read_sql("SELECT DISTINCT symbol FROM companies ORDER BY symbol", engine)
+            companies_df = pd.read_sql("SELECT DISTINCT symbol FROM companies ORDER BY symbol", conn)
             selected_companies = st.multiselect(
                 "Companies",
                 companies_df['symbol'].tolist(),
@@ -1774,7 +1768,7 @@ def show_all_metrics():
             years_df = pd.read_sql("""
                 SELECT DISTINCT fiscal_year FROM calculated_metrics 
                 ORDER BY fiscal_year DESC
-            """, engine)
+            """, conn)
             selected_years = st.multiselect(
                 "Years",
                 years_df['fiscal_year'].tolist(),
@@ -1802,7 +1796,7 @@ def show_all_metrics():
             ORDER BY c.symbol, cm.fiscal_year DESC, cm.metric_category, cm.metric_name
         """
         
-        df = pd.read_sql(query, engine)
+        df = pd.read_sql(query, conn)
         
         if df.empty:
             st.warning("⚠️ No data available")
@@ -1837,6 +1831,9 @@ def show_all_metrics():
         
     except Exception as e:
         st.error(f"❌ Error: {e}")
+    finally:
+        if conn:
+            conn.close()
 
 
 if __name__ == "__main__":
