@@ -93,10 +93,7 @@ def show():
                     return 'background-color: #dc3545; color: white'
                 return ''
             
-            styled_df = df_history.style.applymap(
-                highlight_status, 
-                subset=['Status']
-            )
+            styled_df = df.style.map(color_status, subset=['Status']) 
             
             st.dataframe(styled_df, use_container_width=True, hide_index=True)
             

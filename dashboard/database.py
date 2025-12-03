@@ -35,7 +35,7 @@ def test_connection():
     if engine:
         try:
             with engine.connect() as conn:
-                result = conn.execute("SELECT version()")
+                result = conn.execute(text("SELECT version()"))  # ← text() wrapper!
                 version = result.fetchone()
                 return True, "PostgreSQL Connected"
         except Exception as e:
