@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import psycopg2
 import os
 from datetime import datetime
+import time
 
 # Page config
 st.set_page_config(
@@ -40,8 +41,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Database connection
-@st.cache_resource
+# Database connection with shorter cache time for refresh
+@st.cache_resource(ttl=60)
 def get_db_connection():
     try:
         conn = psycopg2.connect(
@@ -86,6 +87,30 @@ def main():
         )
         
         st.markdown("---")
+        
+        # Refresh controls
+        st.markdown("### 🔄 Data Refresh")
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            if st.button("🔄 Refresh Now", use_container_width=True):
+                st.cache_resource.clear()
+                st.cache_data.clear()
+                st.success("✅ Refreshed!")
+                time.sleep(0.5)
+                st.rerun()
+        
+        with col2:
+            auto_refresh = st.toggle("Auto")
+        
+        if auto_refresh:
+            st.info("⏱️ Refreshing every 30s")
+            time.sleep(30)
+            st.rerun()
+        
+        st.caption(f"🕐 Last update: {datetime.now().strftime('%H:%M:%S')}")
+        
+        st.markdown("---")
         st.markdown("### 🔌 Connection Status")
         success, msg = test_connection()
         if success:
@@ -104,6 +129,8 @@ def main():
         - DD - DuPont de Nemours
         
         **Update:** Daily at 8 AM
+        
+        **Data Period:** Last 3 years
         """)
     
     # Routes
@@ -268,6 +295,7 @@ def show_overview():
             st.dataframe(display_df, use_container_width=True, hide_index=True)
         else:
             st.warning("⚠️ No data available. Run ETL pipeline first!")
+            st.info("👉 Go to Easypanel → etl → Terminal → Run: `python main.py`")
             
     except Exception as e:
         st.error(f"❌ Error: {e}")
@@ -417,6 +445,7 @@ def show_liquidity():
             fig.add_hline(y=1.5, line_dash="dash", line_color="yellow", 
                           annotation_text="Healthy Level (1.5)")
             fig.update_layout(height=400, hovermode='x unified')
+            fig.update_traces(line=dict(width=3), marker=dict(size=10))
             st.plotly_chart(fig, use_container_width=True)
         
         with col2:
@@ -432,6 +461,7 @@ def show_liquidity():
             fig.add_hline(y=1.0, line_dash="dash", line_color="yellow",
                           annotation_text="Healthy Level (1.0)")
             fig.update_layout(height=400, hovermode='x unified')
+            fig.update_traces(line=dict(width=3), marker=dict(size=10))
             st.plotly_chart(fig, use_container_width=True)
         
         # Latest ratios
@@ -452,7 +482,7 @@ def show_liquidity():
         st.error(f"❌ Error: {e}")
 
 def show_all_metrics():
-    """Show all metrics in table format (original view improved)"""
+    """Show all metrics in table format"""
     st.markdown("## 📊 All Financial Metrics")
     
     conn = get_db_connection()
@@ -565,7 +595,8 @@ def show_etl_logs():
         """, conn)
         
         if df.empty:
-            st.info("ℹ️ No ETL runs yet. Trigger the workflow in n8n.")
+            st.info("ℹ️ No ETL runs yet. Trigger the workflow in n8n or run manually.")
+            st.code("# In Easypanel → etl → Terminal:\npython main.py")
             return
         
         # Metrics
@@ -583,20 +614,41 @@ def show_etl_logs():
         
         st.markdown("---")
         
-        # Success rate chart
-        st.markdown("### 📈 Success Rate Over Time")
-        df['success'] = (df['status'] == 'SUCCESS').astype(int)
-        fig = px.line(
-            df.iloc[::-1],
-            x='run_date',
-            y='success',
-            template="plotly_dark",
-            markers=True
-        )
+        # Execution timeline
+        st.markdown("### 📈 Execution Timeline")
+        
+        # Preparar dados para o gráfico
+        timeline_df = df.copy()
+        timeline_df['date_str'] = timeline_df['run_date'].dt.strftime('%m/%d %H:%M')
+        
+        fig = go.Figure()
+        
+        for status in ['SUCCESS', 'FAILED']:
+            status_df = timeline_df[timeline_df['status'] == status]
+            if not status_df.empty:
+                fig.add_trace(go.Scatter(
+                    x=status_df['run_date'],
+                    y=status_df['execution_time_seconds'],
+                    mode='markers',
+                    name=status,
+                    marker=dict(
+                        size=12,
+                        color='#00CC96' if status == 'SUCCESS' else '#EF553B',
+                        symbol='circle'
+                    ),
+                    text=status_df['date_str'],
+                    hovertemplate='<b>%{text}</b><br>Time: %{y}s<br>Status: ' + status + '<extra></extra>'
+                ))
+        
         fig.update_layout(
-            yaxis=dict(tickvals=[0, 1], ticktext=['Failed', 'Success']),
-            height=300
+            xaxis_title="Date",
+            yaxis_title="Execution Time (seconds)",
+            height=350,
+            template="plotly_dark",
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
         )
+        
         st.plotly_chart(fig, use_container_width=True)
         
         # Logs table
@@ -606,20 +658,29 @@ def show_etl_logs():
         display_df.columns = ['Date', 'Workflow', 'Companies', 'API Calls', 
                                'Failures', 'Time (s)', 'Status']
         
-        # Color code status
-        def highlight_status(val):
-            color = '#28a745' if val == 'SUCCESS' else '#dc3545'
-            return f'background-color: {color}; color: white; font-weight: bold'
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
         
-        styled_df = display_df.style.applymap(
-            highlight_status,
-            subset=['Status']
-        )
+        # Quick stats
+        col1, col2 = st.columns(2)
         
-        st.dataframe(styled_df, use_container_width=True, hide_index=True)
+        with col1:
+            st.markdown("#### ⏱️ Execution Time Stats")
+            st.write(f"**Min:** {df['execution_time_seconds'].min():.0f}s")
+            st.write(f"**Max:** {df['execution_time_seconds'].max():.0f}s")
+            st.write(f"**Avg:** {df['execution_time_seconds'].mean():.0f}s")
+        
+        with col2:
+            st.markdown("#### 📞 API Calls Stats")
+            st.write(f"**Total Calls:** {df['api_calls_made'].sum()}")
+            st.write(f"**Total Failures:** {df['api_failures'].sum()}")
+            failure_rate = (df['api_failures'].sum() / df['api_calls_made'].sum() * 100) if df['api_calls_made'].sum() > 0 else 0
+            st.write(f"**Failure Rate:** {failure_rate:.1f}%")
         
     except Exception as e:
         st.error(f"❌ Error: {e}")
+        import traceback
+        with st.expander("🐛 Debug Info"):
+            st.code(traceback.format_exc())
 
 if __name__ == "__main__":
     main()
