@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 import psycopg2
 import os
 from datetime import datetime
@@ -8,8 +10,35 @@ from datetime import datetime
 st.set_page_config(
     page_title="WindBorne Finance",
     page_icon="📊",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
+
+# Custom CSS
+st.markdown("""
+    <style>
+    .main {
+        padding: 0rem 1rem;
+    }
+    .stMetric {
+        background-color: #262730;
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #4a4a55;
+    }
+    .stMetric label {
+        font-size: 0.9rem !important;
+        color: #b3b3b3;
+    }
+    .stMetric [data-testid="stMetricValue"] {
+        font-size: 1.8rem !important;
+    }
+    div[data-testid="stExpander"] {
+        border: 1px solid #4a4a55;
+        border-radius: 8px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # Database connection
 @st.cache_resource
@@ -24,7 +53,7 @@ def get_db_connection():
         )
         return conn
     except Exception as e:
-        st.error(f"Database connection failed: {e}")
+        st.error(f"❌ Database connection failed: {e}")
         return None
 
 # Test connection
@@ -35,115 +64,234 @@ def test_connection():
             cur = conn.cursor()
             cur.execute("SELECT version();")
             version = cur.fetchone()
-            return True, f"Connected! PostgreSQL {version[0][:20]}..."
+            return True, f"PostgreSQL Connected"
         except Exception as e:
             return False, str(e)
     return False, "Connection is None"
 
 # Main app
 def main():
-    st.title("📊 WindBorne Finance Dashboard")
+    # Header
+    st.markdown("# 📊 WindBorne Finance Dashboard")
+    st.markdown("### Real-time financial metrics for TEL, ST, and DD")
+    st.markdown("---")
     
     # Sidebar
-    st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Select Page", ["Home", "Companies", "Metrics", "ETL Logs"])
-    
-    # Connection test
-    with st.sidebar.expander("🔌 Database Status"):
+    with st.sidebar:
+        st.markdown("## 🎯 Navigation")
+        page = st.radio(
+            "Select View",
+            ["📈 Overview", "💰 Profitability", "💧 Liquidity", "📊 All Metrics", "📋 ETL Logs"],
+            label_visibility="collapsed"
+        )
+        
+        st.markdown("---")
+        st.markdown("### 🔌 Connection Status")
         success, msg = test_connection()
         if success:
             st.success(msg)
         else:
             st.error(msg)
+        
+        st.markdown("---")
+        st.markdown("### ℹ️ About")
+        st.info("""
+        **Data Source:** Alpha Vantage API
+        
+        **Companies:**
+        - TEL - TE Connectivity
+        - ST - Sensata Technologies
+        - DD - DuPont de Nemours
+        
+        **Update:** Daily at 8 AM
+        """)
     
-    # Pages
-    if page == "Home":
-        show_home()
-    elif page == "Companies":
-        show_companies()
-    elif page == "Metrics":
-        show_metrics()
+    # Routes
+    if page == "📈 Overview":
+        show_overview()
+    elif page == "💰 Profitability":
+        show_profitability()
+    elif page == "💧 Liquidity":
+        show_liquidity()
+    elif page == "📊 All Metrics":
+        show_all_metrics()
     else:
         show_etl_logs()
 
-def show_home():
-    st.header("Welcome to WindBorne Finance")
-    
-    col1, col2, col3 = st.columns(3)
-    
+def show_overview():
+    """Overview page with key metrics"""
     conn = get_db_connection()
     if not conn:
-        st.error("Cannot connect to database")
+        st.error("❌ Cannot connect to database")
         return
     
     try:
-        # Count companies
-        df = pd.read_sql("SELECT COUNT(*) as count FROM companies", conn)
-        col1.metric("Companies", df['count'].iloc[0])
+        # Quick stats
+        col1, col2, col3, col4 = st.columns(4)
         
-        # Count metrics
-        df = pd.read_sql("SELECT COUNT(DISTINCT fiscal_year) as count FROM calculated_metrics", conn)
-        col2.metric("Years of Data", df['count'].iloc[0])
+        with col1:
+            df = pd.read_sql("SELECT COUNT(*) as count FROM companies", conn)
+            st.metric("🏢 Companies", df['count'].iloc[0])
         
-        # Last ETL run
-        df = pd.read_sql("SELECT run_date FROM etl_runs ORDER BY run_date DESC LIMIT 1", conn)
-        if not df.empty:
-            last_run = df['run_date'].iloc[0]
-            col3.metric("Last ETL Run", last_run.strftime("%Y-%m-%d %H:%M"))
-        else:
-            col3.metric("Last ETL Run", "Never")
-            
-    except Exception as e:
-        st.error(f"Error: {e}")
-
-def show_companies():
-    st.header("📈 Companies")
-    
-    conn = get_db_connection()
-    if not conn:
-        st.error("Cannot connect to database")
-        return
-    
-    try:
-        df = pd.read_sql("""
+        with col2:
+            df = pd.read_sql("""
+                SELECT COUNT(DISTINCT fiscal_year) as count 
+                FROM calculated_metrics
+            """, conn)
+            st.metric("📅 Years of Data", df['count'].iloc[0])
+        
+        with col3:
+            df = pd.read_sql("""
+                SELECT COUNT(*) as count 
+                FROM calculated_metrics
+            """, conn)
+            st.metric("📊 Total Metrics", f"{df['count'].iloc[0]:,}")
+        
+        with col4:
+            df = pd.read_sql("""
+                SELECT run_date FROM etl_runs 
+                ORDER BY run_date DESC LIMIT 1
+            """, conn)
+            if not df.empty:
+                last_run = df['run_date'].iloc[0]
+                st.metric("🔄 Last Update", last_run.strftime("%m/%d/%Y"))
+            else:
+                st.metric("🔄 Last Update", "Never")
+        
+        st.markdown("---")
+        
+        # Latest metrics comparison
+        st.markdown("## 📈 Latest Performance (Most Recent Year)")
+        
+        query = """
+            WITH latest_year AS (
+                SELECT MAX(fiscal_year) as year FROM calculated_metrics
+            )
             SELECT 
-                symbol,
-                name,
-                sector,
-                industry,
-                updated_at
-            FROM companies
-            ORDER BY symbol
-        """, conn)
+                c.symbol,
+                c.name,
+                cm.fiscal_year,
+                MAX(CASE WHEN cm.metric_name = 'gross_margin_pct' 
+                    THEN cm.metric_value END) as gross_margin,
+                MAX(CASE WHEN cm.metric_name = 'operating_margin_pct' 
+                    THEN cm.metric_value END) as operating_margin,
+                MAX(CASE WHEN cm.metric_name = 'net_margin_pct' 
+                    THEN cm.metric_value END) as net_margin,
+                MAX(CASE WHEN cm.metric_name = 'current_ratio' 
+                    THEN cm.metric_value END) as current_ratio,
+                MAX(CASE WHEN cm.metric_name = 'revenue_yoy_pct' 
+                    THEN cm.metric_value END) as revenue_growth
+            FROM calculated_metrics cm
+            JOIN companies c ON cm.company_id = c.id
+            WHERE cm.fiscal_year = (SELECT year FROM latest_year)
+            GROUP BY c.symbol, c.name, cm.fiscal_year
+            ORDER BY c.symbol
+        """
         
-        if df.empty:
-            st.warning("No companies found. Run ETL first!")
+        df = pd.read_sql(query, conn)
+        
+        if not df.empty:
+            # Create comparison charts
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("### 💰 Profitability Margins")
+                fig = go.Figure()
+                
+                for col, name, color in [
+                    ('gross_margin', 'Gross Margin', '#00CC96'),
+                    ('operating_margin', 'Operating Margin', '#AB63FA'),
+                    ('net_margin', 'Net Margin', '#FFA15A')
+                ]:
+                    fig.add_trace(go.Bar(
+                        name=name,
+                        x=df['symbol'],
+                        y=df[col],
+                        text=df[col].round(1).astype(str) + '%',
+                        textposition='auto',
+                        marker_color=color
+                    ))
+                
+                fig.update_layout(
+                    barmode='group',
+                    height=400,
+                    xaxis_title="Company",
+                    yaxis_title="Margin (%)",
+                    template="plotly_dark",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                st.markdown("### 📊 Financial Health")
+                fig = go.Figure()
+                
+                fig.add_trace(go.Bar(
+                    name='Current Ratio',
+                    x=df['symbol'],
+                    y=df['current_ratio'],
+                    text=df['current_ratio'].round(2).astype(str),
+                    textposition='auto',
+                    marker_color='#636EFA',
+                    yaxis='y'
+                ))
+                
+                fig.add_trace(go.Scatter(
+                    name='Revenue Growth (%)',
+                    x=df['symbol'],
+                    y=df['revenue_growth'],
+                    text=df['revenue_growth'].round(1).astype(str) + '%',
+                    textposition='top center',
+                    mode='lines+markers+text',
+                    marker=dict(size=12, color='#EF553B'),
+                    yaxis='y2',
+                    line=dict(width=3)
+                ))
+                
+                fig.update_layout(
+                    height=400,
+                    xaxis_title="Company",
+                    yaxis=dict(title="Current Ratio", side="left"),
+                    yaxis2=dict(title="Revenue Growth (%)", overlaying="y", side="right"),
+                    template="plotly_dark",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            
+            # Data table
+            st.markdown("### 📋 Detailed Metrics")
+            display_df = df.copy()
+            display_df = display_df.round(2)
+            display_df.columns = ['Symbol', 'Company', 'Year', 'Gross Margin %', 
+                                   'Operating Margin %', 'Net Margin %', 
+                                   'Current Ratio', 'Revenue Growth %']
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
         else:
-            st.dataframe(df, use_container_width=True)
+            st.warning("⚠️ No data available. Run ETL pipeline first!")
             
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"❌ Error: {e}")
+        import traceback
+        with st.expander("🐛 Debug Info"):
+            st.code(traceback.format_exc())
 
-def show_metrics():
-    st.header("💰 Financial Metrics")
+def show_profitability():
+    """Profitability trends over time"""
+    st.markdown("## 💰 Profitability Analysis")
     
     conn = get_db_connection()
     if not conn:
-        st.error("Cannot connect to database")
+        st.error("❌ Cannot connect to database")
         return
     
     try:
-        # Get available companies and years
-        companies_df = pd.read_sql("SELECT DISTINCT symbol FROM companies ORDER BY symbol", conn)
-        years_df = pd.read_sql("SELECT DISTINCT fiscal_year FROM calculated_metrics ORDER BY fiscal_year DESC", conn)
-        
-        if companies_df.empty or years_df.empty:
-            st.warning("No data available. Run ETL first!")
-            return
-        
         # Filters
         col1, col2 = st.columns(2)
+        
         with col1:
+            companies_df = pd.read_sql("""
+                SELECT DISTINCT symbol FROM companies ORDER BY symbol
+            """, conn)
             selected_companies = st.multiselect(
                 "Select Companies",
                 companies_df['symbol'].tolist(),
@@ -151,24 +299,200 @@ def show_metrics():
             )
         
         with col2:
+            years_df = pd.read_sql("""
+                SELECT DISTINCT fiscal_year FROM calculated_metrics 
+                ORDER BY fiscal_year DESC
+            """, conn)
             selected_years = st.multiselect(
                 "Select Years",
                 years_df['fiscal_year'].tolist(),
-                default=years_df['fiscal_year'].tolist()[:3]
+                default=years_df['fiscal_year'].tolist()
             )
         
         if not selected_companies or not selected_years:
-            st.info("Please select at least one company and year")
+            st.info("ℹ️ Please select at least one company and year")
             return
         
-        # Query metrics
+        # Query data
         companies_str = "','".join(selected_companies)
         years_str = ",".join(map(str, selected_years))
         
         query = f"""
             SELECT 
                 c.symbol,
-                c.name,
+                cm.fiscal_year,
+                MAX(CASE WHEN cm.metric_name = 'gross_margin_pct' 
+                    THEN cm.metric_value END) as gross_margin,
+                MAX(CASE WHEN cm.metric_name = 'operating_margin_pct' 
+                    THEN cm.metric_value END) as operating_margin,
+                MAX(CASE WHEN cm.metric_name = 'net_margin_pct' 
+                    THEN cm.metric_value END) as net_margin
+            FROM calculated_metrics cm
+            JOIN companies c ON cm.company_id = c.id
+            WHERE c.symbol IN ('{companies_str}')
+            AND cm.fiscal_year IN ({years_str})
+            GROUP BY c.symbol, cm.fiscal_year
+            ORDER BY c.symbol, cm.fiscal_year
+        """
+        
+        df = pd.read_sql(query, conn)
+        
+        if df.empty:
+            st.warning("⚠️ No data found for selected filters")
+            return
+        
+        # Create trend charts
+        metrics = [
+            ('gross_margin', 'Gross Margin %', '#00CC96'),
+            ('operating_margin', 'Operating Margin %', '#AB63FA'),
+            ('net_margin', 'Net Margin %', '#FFA15A')
+        ]
+        
+        for metric_col, title, color in metrics:
+            st.markdown(f"### {title}")
+            fig = px.line(
+                df,
+                x='fiscal_year',
+                y=metric_col,
+                color='symbol',
+                markers=True,
+                template="plotly_dark"
+            )
+            fig.update_layout(
+                height=400,
+                xaxis_title="Fiscal Year",
+                yaxis_title=title,
+                legend_title="Company",
+                hovermode='x unified'
+            )
+            fig.update_traces(line=dict(width=3), marker=dict(size=10))
+            st.plotly_chart(fig, use_container_width=True)
+            
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
+
+def show_liquidity():
+    """Liquidity metrics"""
+    st.markdown("## 💧 Liquidity & Solvency")
+    
+    conn = get_db_connection()
+    if not conn:
+        st.error("❌ Cannot connect to database")
+        return
+    
+    try:
+        # Get data
+        query = """
+            SELECT 
+                c.symbol,
+                cm.fiscal_year,
+                MAX(CASE WHEN cm.metric_name = 'current_ratio' 
+                    THEN cm.metric_value END) as current_ratio,
+                MAX(CASE WHEN cm.metric_name = 'quick_ratio' 
+                    THEN cm.metric_value END) as quick_ratio
+            FROM calculated_metrics cm
+            JOIN companies c ON cm.company_id = c.id
+            GROUP BY c.symbol, cm.fiscal_year
+            ORDER BY c.symbol, cm.fiscal_year
+        """
+        
+        df = pd.read_sql(query, conn)
+        
+        if df.empty:
+            st.warning("⚠️ No liquidity data available")
+            return
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("### Current Ratio Trend")
+            fig = px.line(
+                df,
+                x='fiscal_year',
+                y='current_ratio',
+                color='symbol',
+                markers=True,
+                template="plotly_dark"
+            )
+            fig.add_hline(y=1.5, line_dash="dash", line_color="yellow", 
+                          annotation_text="Healthy Level (1.5)")
+            fig.update_layout(height=400, hovermode='x unified')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            st.markdown("### Quick Ratio Trend")
+            fig = px.line(
+                df,
+                x='fiscal_year',
+                y='quick_ratio',
+                color='symbol',
+                markers=True,
+                template="plotly_dark"
+            )
+            fig.add_hline(y=1.0, line_dash="dash", line_color="yellow",
+                          annotation_text="Healthy Level (1.0)")
+            fig.update_layout(height=400, hovermode='x unified')
+            st.plotly_chart(fig, use_container_width=True)
+        
+        # Latest ratios
+        st.markdown("### 📊 Latest Liquidity Ratios")
+        latest_year = df['fiscal_year'].max()
+        latest_df = df[df['fiscal_year'] == latest_year]
+        
+        cols = st.columns(len(latest_df))
+        for idx, (_, row) in enumerate(latest_df.iterrows()):
+            with cols[idx]:
+                st.metric(
+                    f"{row['symbol']}",
+                    f"Current: {row['current_ratio']:.2f}",
+                    f"Quick: {row['quick_ratio']:.2f}" if row['quick_ratio'] else "N/A"
+                )
+        
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
+
+def show_all_metrics():
+    """Show all metrics in table format (original view improved)"""
+    st.markdown("## 📊 All Financial Metrics")
+    
+    conn = get_db_connection()
+    if not conn:
+        st.error("❌ Cannot connect to database")
+        return
+    
+    try:
+        # Filters
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            companies_df = pd.read_sql("SELECT DISTINCT symbol FROM companies ORDER BY symbol", conn)
+            selected_companies = st.multiselect(
+                "Companies",
+                companies_df['symbol'].tolist(),
+                default=companies_df['symbol'].tolist()
+            )
+        
+        with col2:
+            years_df = pd.read_sql("""
+                SELECT DISTINCT fiscal_year FROM calculated_metrics 
+                ORDER BY fiscal_year DESC
+            """, conn)
+            selected_years = st.multiselect(
+                "Years",
+                years_df['fiscal_year'].tolist(),
+                default=years_df['fiscal_year'].tolist()[:3]
+            )
+        
+        if not selected_companies or not selected_years:
+            st.info("ℹ️ Select filters above")
+            return
+        
+        companies_str = "','".join(selected_companies)
+        years_str = ",".join(map(str, selected_years))
+        
+        query = f"""
+            SELECT 
+                c.symbol,
                 cm.fiscal_year,
                 cm.metric_name,
                 cm.metric_value,
@@ -177,37 +501,52 @@ def show_metrics():
             JOIN companies c ON cm.company_id = c.id
             WHERE c.symbol IN ('{companies_str}')
             AND cm.fiscal_year IN ({years_str})
-            ORDER BY c.symbol, cm.fiscal_year DESC, cm.metric_name
+            ORDER BY c.symbol, cm.fiscal_year DESC, cm.metric_category, cm.metric_name
         """
         
         df = pd.read_sql(query, conn)
         
         if df.empty:
-            st.warning("No metrics found for selected filters")
-        else:
-            st.success(f"Found {len(df)} metrics")
-            
-            # Pivot table for better view
-            pivot_df = df.pivot_table(
-                index=['symbol', 'fiscal_year'],
-                columns='metric_name',
-                values='metric_value',
-                aggfunc='first'
-            ).reset_index()
-            
-            st.dataframe(pivot_df, use_container_width=True)
-            
+            st.warning("⚠️ No data available")
+            return
+        
+        st.success(f"✅ Found {len(df)} metrics")
+        
+        # Pivot for better view
+        pivot_df = df.pivot_table(
+            index=['symbol', 'fiscal_year'],
+            columns='metric_name',
+            values='metric_value',
+            aggfunc='first'
+        ).reset_index()
+        
+        # Format numbers
+        numeric_cols = pivot_df.select_dtypes(include=['float64', 'int64']).columns
+        for col in numeric_cols:
+            if col not in ['symbol', 'fiscal_year']:
+                pivot_df[col] = pivot_df[col].round(2)
+        
+        st.dataframe(pivot_df, use_container_width=True, height=600)
+        
+        # Download button
+        csv = pivot_df.to_csv(index=False)
+        st.download_button(
+            label="📥 Download CSV",
+            data=csv,
+            file_name=f"windborne_metrics_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
+        
     except Exception as e:
-        st.error(f"Error: {e}")
-        import traceback
-        st.code(traceback.format_exc())
+        st.error(f"❌ Error: {e}")
 
 def show_etl_logs():
-    st.header("📋 ETL Execution Logs")
+    """ETL execution logs"""
+    st.markdown("## 📋 ETL Pipeline Logs")
     
     conn = get_db_connection()
     if not conn:
-        st.error("Cannot connect to database")
+        st.error("❌ Cannot connect to database")
         return
     
     try:
@@ -222,30 +561,65 @@ def show_etl_logs():
                 status
             FROM etl_runs
             ORDER BY run_date DESC
-            LIMIT 20
+            LIMIT 50
         """, conn)
         
         if df.empty:
-            st.info("No ETL runs yet")
-        else:
-            # Metrics
-            col1, col2, col3, col4 = st.columns(4)
-            
-            total_runs = len(df)
-            success_rate = (df['status'] == 'SUCCESS').sum() / total_runs * 100
-            avg_time = df['execution_time_seconds'].mean()
-            last_run = df['run_date'].iloc[0]
-            
-            col1.metric("Total Runs", total_runs)
-            col2.metric("Success Rate", f"{success_rate:.1f}%")
-            col3.metric("Avg Time", f"{avg_time:.0f}s")
-            col4.metric("Last Run", last_run.strftime("%Y-%m-%d"))
-            
-            # Table
-            st.dataframe(df, use_container_width=True)
-            
+            st.info("ℹ️ No ETL runs yet. Trigger the workflow in n8n.")
+            return
+        
+        # Metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        total_runs = len(df)
+        success_rate = (df['status'] == 'SUCCESS').sum() / total_runs * 100 if total_runs > 0 else 0
+        avg_time = df['execution_time_seconds'].mean()
+        last_run = df['run_date'].iloc[0]
+        
+        col1.metric("📊 Total Runs", total_runs)
+        col2.metric("✅ Success Rate", f"{success_rate:.1f}%")
+        col3.metric("⏱️ Avg Time", f"{avg_time:.0f}s")
+        col4.metric("🔄 Last Run", last_run.strftime("%m/%d %H:%M"))
+        
+        st.markdown("---")
+        
+        # Success rate chart
+        st.markdown("### 📈 Success Rate Over Time")
+        df['success'] = (df['status'] == 'SUCCESS').astype(int)
+        fig = px.line(
+            df.iloc[::-1],
+            x='run_date',
+            y='success',
+            template="plotly_dark",
+            markers=True
+        )
+        fig.update_layout(
+            yaxis=dict(tickvals=[0, 1], ticktext=['Failed', 'Success']),
+            height=300
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Logs table
+        st.markdown("### 📋 Recent Executions")
+        display_df = df.copy()
+        display_df['run_date'] = display_df['run_date'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        display_df.columns = ['Date', 'Workflow', 'Companies', 'API Calls', 
+                               'Failures', 'Time (s)', 'Status']
+        
+        # Color code status
+        def highlight_status(val):
+            color = '#28a745' if val == 'SUCCESS' else '#dc3545'
+            return f'background-color: {color}; color: white; font-weight: bold'
+        
+        styled_df = display_df.style.applymap(
+            highlight_status,
+            subset=['Status']
+        )
+        
+        st.dataframe(styled_df, use_container_width=True, hide_index=True)
+        
     except Exception as e:
-        st.error(f"Error: {e}")
+        st.error(f"❌ Error: {e}")
 
 if __name__ == "__main__":
     main()
