@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from database import get_db_connection → from database import get_db_engine
+from database import get_db_engine
 
 
 def show():
