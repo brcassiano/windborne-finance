@@ -1,6 +1,6 @@
 """Database connection management"""
 import os
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text  # ← ADICIONAR 'text'
 import urllib.parse
 import streamlit as st
 
@@ -35,7 +35,7 @@ def test_connection():
     if engine:
         try:
             with engine.connect() as conn:
-                result = conn.execute(text("SELECT version()"))  # ← text() wrapper!
+                result = conn.execute(text("SELECT version()"))
                 version = result.fetchone()
                 return True, "PostgreSQL Connected"
         except Exception as e:
