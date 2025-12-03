@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 import time
 
+
 # Page config
 st.set_page_config(
     page_title="WindBorne Finance",
@@ -14,6 +15,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
 
 # Custom CSS
 st.markdown("""
@@ -41,6 +43,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+
 # Database connection with shorter cache time for refresh
 @st.cache_resource(ttl=60)
 def get_db_connection():
@@ -57,6 +60,7 @@ def get_db_connection():
         st.error(f"❌ Database connection failed: {e}")
         return None
 
+
 # Test connection
 def test_connection():
     conn = get_db_connection()
@@ -70,6 +74,162 @@ def test_connection():
             return False, str(e)
     return False, "Connection is None"
 
+
+def show_system_health():
+    """System health and ETL monitoring"""
+    st.markdown("## 🔧 System Health")
+    
+    conn = get_db_connection()
+    if not conn:
+        st.error("❌ Cannot connect to database")
+        return
+    
+    try:
+        # Latest ETL run
+        df = pd.read_sql("""
+            SELECT 
+                run_date,
+                workflow_name,
+                companies_processed,
+                api_calls_made,
+                api_failures,
+                execution_time_seconds,
+                status
+            FROM etl_runs
+            ORDER BY run_date DESC
+            LIMIT 1
+        """, conn)
+        
+        if not df.empty:
+            st.markdown("### 📊 Latest Execution")
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                status = df['status'].iloc[0]
+                st.metric(
+                    "Status",
+                    status,
+                    delta="OK" if status == "SUCCESS" else "ERROR",
+                    delta_color="normal" if status == "SUCCESS" else "inverse"
+                )
+            
+            with col2:
+                st.metric("Last Run", df['run_date'].iloc[0].strftime("%Y-%m-%d %H:%M"))
+            
+            with col3:
+                st.metric("Duration", f"{df['execution_time_seconds'].iloc[0]}s")
+            
+            with col4:
+                st.metric("Companies", df['companies_processed'].iloc[0])
+            
+            # API stats
+            col5, col6 = st.columns(2)
+            with col5:
+                st.metric("API Calls", df['api_calls_made'].iloc[0])
+            with col6:
+                st.metric("API Failures", df['api_failures'].iloc[0])
+        else:
+            st.warning("⚠️ No ETL runs found. Run ETL pipeline first!")
+        
+        st.markdown("---")
+        
+        # Execution history
+        st.markdown("### 📊 Execution History (Last 30 days)")
+        
+        df_history = pd.read_sql("""
+            SELECT 
+                run_date as "Date",
+                status as "Status",
+                companies_processed as "Companies",
+                execution_time_seconds as "Duration (s)",
+                api_calls_made as "API Calls",
+                api_failures as "Failures"
+            FROM etl_runs
+            WHERE run_date > NOW() - INTERVAL '30 days'
+            ORDER BY run_date DESC
+        """, conn)
+        
+        if not df_history.empty:
+            # Apply styling to status column
+            def highlight_status(val):
+                if val == 'SUCCESS':
+                    return 'background-color: #28a745; color: white'
+                elif val == 'FAILED':
+                    return 'background-color: #dc3545; color: white'
+                return ''
+            
+            styled_df = df_history.style.applymap(
+                highlight_status, 
+                subset=['Status']
+            )
+            
+            st.dataframe(styled_df, use_container_width=True, hide_index=True)
+            
+            # Success rate chart
+            st.markdown("### 📈 Execution Timeline")
+            
+            # Prepare data for chart
+            chart_data = pd.read_sql("""
+                SELECT 
+                    run_date,
+                    execution_time_seconds,
+                    status
+                FROM etl_runs
+                WHERE run_date > NOW() - INTERVAL '30 days'
+                ORDER BY run_date ASC
+            """, conn)
+            
+            if not chart_data.empty:
+                fig = go.Figure()
+                
+                # Color by status
+                colors = chart_data['status'].map({
+                    'SUCCESS': '#28a745',
+                    'FAILED': '#dc3545'
+                })
+                
+                fig.add_trace(go.Scatter(
+                    x=chart_data['run_date'],
+                    y=chart_data['execution_time_seconds'],
+                    mode='lines+markers',
+                    name='Execution Time',
+                    line=dict(color='#636EFA', width=2),
+                    marker=dict(
+                        color=colors,
+                        size=12,
+                        line=dict(width=2, color='white')
+                    ),
+                    hovertemplate='<b>%{x}</b><br>Duration: %{y}s<extra></extra>'
+                ))
+                
+                fig.update_layout(
+                    title="ETL Execution Time Over Last 30 Days",
+                    xaxis_title="Date",
+                    yaxis_title="Time (seconds)",
+                    template="plotly_dark",
+                    height=400,
+                    hovermode='x unified'
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # Success rate metric
+                success_rate = (chart_data['status'] == 'SUCCESS').mean() * 100
+                st.metric(
+                    "Success Rate (30 days)",
+                    f"{success_rate:.1f}%",
+                    delta=f"{len(chart_data[chart_data['status'] == 'SUCCESS'])} successful runs"
+                )
+        else:
+            st.info("👉 No execution history yet. ETL will run daily at 8 AM.")
+        
+    except Exception as e:
+        st.error(f"❌ Error loading system health: {e}")
+        import traceback
+        with st.expander("🐛 Debug Info"):
+            st.code(traceback.format_exc())
+
+
 # Main app
 def main():
     # Header
@@ -82,7 +242,7 @@ def main():
         st.markdown("## 🎯 Navigation")
         page = st.radio(
             "Select View",
-            ["📈 Overview", "💰 Profitability", "💧 Liquidity", "📊 All Metrics", "📋 ETL Logs"],
+            ["📈 Overview", "💰 Profitability", "💧 Liquidity", "📊 All Metrics", "🔧 System Health", "📋 ETL Logs"],
             label_visibility="collapsed"
         )
         
@@ -142,8 +302,11 @@ def main():
         show_liquidity()
     elif page == "📊 All Metrics":
         show_all_metrics()
+    elif page == "🔧 System Health":
+        show_system_health()
     else:
         show_etl_logs()
+
 
 def show_overview():
     """Overview page with key metrics"""
@@ -187,10 +350,9 @@ def show_overview():
         
         st.markdown("---")
         
-        # Latest metrics comparison - MODIFICADO
+        # Latest metrics comparison
         st.markdown("## 📈 Latest Performance (Most Recent Year Per Company)")
         
-        # Query que pega o último ano disponível de CADA empresa
         query = """
             WITH latest_per_company AS (
                 SELECT 
@@ -241,9 +403,6 @@ def show_overview():
                     ('operating_margin', 'Operating Margin', '#AB63FA'),
                     ('net_margin', 'Net Margin', '#FFA15A')
                 ]:
-                    # Adicionar ano no label
-                    labels = [f"{row['symbol']}<br>({row['fiscal_year']})" for _, row in df.iterrows()]
-                    
                     fig.add_trace(go.Bar(
                         name=name,
                         x=df['symbol'],
@@ -322,6 +481,7 @@ def show_overview():
         import traceback
         with st.expander("🐛 Debug Info"):
             st.code(traceback.format_exc())
+
 
 def show_profitability():
     """Profitability trends over time"""
@@ -419,6 +579,7 @@ def show_profitability():
     except Exception as e:
         st.error(f"❌ Error: {e}")
 
+
 def show_liquidity():
     """Liquidity metrics"""
     st.markdown("## 💧 Liquidity & Solvency")
@@ -500,6 +661,7 @@ def show_liquidity():
         
     except Exception as e:
         st.error(f"❌ Error: {e}")
+
 
 def show_all_metrics():
     """Show all metrics in table format"""
@@ -589,6 +751,7 @@ def show_all_metrics():
         
     except Exception as e:
         st.error(f"❌ Error: {e}")
+
 
 def show_etl_logs():
     """ETL execution logs"""
@@ -701,6 +864,7 @@ def show_etl_logs():
         import traceback
         with st.expander("🐛 Debug Info"):
             st.code(traceback.format_exc())
+
 
 if __name__ == "__main__":
     main()
