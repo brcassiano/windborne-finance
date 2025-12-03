@@ -12,6 +12,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
 # OCULTAR MENU HAMBURGER E PÁGINAS AUTOMÁTICAS
 st.markdown("""
     <style>
@@ -26,8 +27,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Renderizar sidebar customizada
-render_sidebar()
+
+# ❌ REMOVER ESTA LINHA (linha 36):
+# render_sidebar()  # ← DELETAR!
 
 
 # Custom CSS
@@ -87,21 +89,21 @@ def main():
     st.markdown("### Real-time financial metrics for TEL, ST, and DD")
     st.markdown("---")
     
-    # Render sidebar and get selected page
+    # Render sidebar and get selected page (ÚNICA CHAMADA!)
     page = render_sidebar()
     
     # Route to appropriate page
-    if page == "📈 Overview":
+    if page == "📊 Overview":
         overview.show()
     elif page == "💰 Profitability":
         profitability.show()
     elif page == "💧 Liquidity":
         liquidity.show()
-    elif page == "📊 All Metrics":
+    elif page == "📈 All Metrics":
         all_metrics.show()
-    elif page == "🔧 System Health":
+    elif page == "🏥 System Health":
         system_health.show()
-    else:
+    elif page == "📚 Production Guide":
         production.show()
 
 
