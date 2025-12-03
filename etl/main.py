@@ -70,7 +70,8 @@ def main():
             
             # Extract data from API
             statements = api_client.fetch_all_statements(symbol)
-            stats['api_calls_made'] += len(statements) * 3  # 3 calls per statement type
+            # Each key in `statements` corresponds to one API call (INCOME, BALANCE, CASHFLOW)
+            stats['api_calls_made'] += len(statements)  # count actual calls made
             
             if not statements:
                 logger.warning(f"No data fetched for {symbol}")
