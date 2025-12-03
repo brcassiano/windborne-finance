@@ -3,10 +3,11 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import psycopg2
+from sqlalchemy import create_engine  # ← ADICIONAR
+import urllib.parse  # ← ADICIONAR
 import os
 from datetime import datetime
 import time
-
 
 # Page config
 st.set_page_config(
@@ -68,9 +69,33 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# Database connection - NO CACHE to avoid "connection already closed"
-def get_db_connection():
-    """Get fresh psycopg2 connection for each query"""
+# Database engine para pandas (SQLAlchemy)
+@st.cache_resource(ttl=300)  # Cache por 5 minutos
+def get_db_engine():
+    """Get SQLAlchemy engine for pandas queries"""
+    try:
+        password = urllib.parse.quote_plus(os.getenv('POSTGRES_PASSWORD', ''))
+        host = os.getenv('POSTGRES_HOST', 'postgres')
+        port = os.getenv('POSTGRES_PORT', 5432)
+        database = os.getenv('POSTGRES_DB', 'windborne_finance')
+        user = os.getenv('POSTGRES_USER', 'postgres')
+        
+        connection_string = f"postgresql://{user}:{password}@{host}:{port}/{database}"
+        engine = create_engine(
+            connection_string, 
+            pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=10
+        )
+        
+        return engine
+    except Exception as e:
+        st.error(f"❌ Database engine creation failed: {e}")
+        return None
+
+
+# Test connection (usa psycopg2 para testar)
+def test_connection():
     try:
         conn = psycopg2.connect(
             host=os.getenv('POSTGRES_HOST', 'postgres'),
@@ -79,28 +104,9 @@ def get_db_connection():
             user=os.getenv('POSTGRES_USER', 'postgres'),
             password=os.getenv('POSTGRES_PASSWORD')
         )
-        return conn
-    except Exception as e:
-        st.error(f"❌ Database connection failed: {e}")
-        return None
-
-
-# Test connection
-def test_connection():
-    conn = get_db_connection()
-    if conn:
-        try:
-            cur = conn.cursor()
-            cur.execute("SELECT version();")
-            version = cur.fetchone()
-            cur.close()
-            conn.close()
-            return True, f"PostgreSQL Connected"
-        except Exception as e:
-            if conn:
-                conn.close()
-            return False, str(e)
-    return False, "Connection is None"
+        cur = conn.cursor()
+        cur.execute("SELECT version();")
+        version = cur
 
 
 def show_system_health():
