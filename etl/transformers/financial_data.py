@@ -46,28 +46,50 @@ class FinancialDataTransformer:
         api_response: Dict
     ) -> List[Dict]:
         """Transform API response to list of database records"""
+        from config import settings
+        from datetime import datetime
+        import json
+
         records = []
-        
+
         # Alpha Vantage returns 'annualReports' for annual data
-        reports = api_response.get('annualReports', [])
-        
-        if not reports:
+        all_reports = api_response.get('annualReports', [])
+
+        if not all_reports:
             logger.warning(f"No annual reports found for {statement_type}")
             return records
-            
+
+        # Filter to only last N years (from config)
+        current_year = datetime.now().year
+        years_to_fetch = settings.YEARS_TO_FETCH
+        min_year = current_year - years_to_fetch
+
+        reports = []
+        for report in all_reports:
+            fiscal_date = report.get('fiscalDateEnding', '')
+            if fiscal_date:
+                fiscal_year = int(fiscal_date[:4])
+                if fiscal_year >= min_year:
+                    reports.append(report)
+
+        logger.info(
+            f"{statement_type}: Filtered {len(all_reports)} reports to "
+            f"{len(reports)} (years {min_year}-{current_year})"
+        )
+
         field_map = self.FIELD_MAPPINGS.get(statement_type, {})
-        
+
         for report in reports:
             fiscal_date = report.get('fiscalDateEnding', '')
             fiscal_year = int(fiscal_date[:4]) if fiscal_date else None
-            
+
             if not fiscal_year:
                 continue
-                
+
             # Transform each field in report to a record
             for api_field, db_field in field_map.items():
                 value = report.get(api_field)
-                
+
                 # Convert string to numeric
                 if value and value != 'None':
                     try:
@@ -76,7 +98,7 @@ class FinancialDataTransformer:
                         numeric_value = None
                 else:
                     numeric_value = None
-                
+
                 records.append({
                     'company_id': company_id,
                     'statement_type': statement_type,
@@ -87,7 +109,7 @@ class FinancialDataTransformer:
                     'reported_currency': 'USD',
                     'raw_data': json.dumps(report)
                 })
-        
+
         logger.info(f"Transformed {len(records)} records for {statement_type}")
         return records
     
