@@ -106,9 +106,11 @@ def show():
                         y=df[col_name],
                         text=df[col_name].round(1).astype(str) + '%',
                         textposition='auto',
-                        marker_color=color,
-                        customdata=df[['fiscal_year']],
-                        hovertemplate='<b>%{x}</b><br>Year: %{customdata[0]}<br>' + name + ': %{y:.2f}%<extra></extra>'
+                        textfont=dict(
+                            size=14,
+                            color='white',
+                            family='Arial Black'
+                        ),
                     ))
                 
                 fig.update_layout(

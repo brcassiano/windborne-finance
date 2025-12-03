@@ -1,6 +1,7 @@
 """Sidebar component with navigation and controls"""
 import streamlit as st
-from database import test_connection
+import pandas as pd
+from database import test_connection, get_db_engine
 
 
 def render_sidebar():
@@ -12,7 +13,7 @@ def render_sidebar():
             "Select Page",
             ["📊 Overview", "💰 Profitability", "💧 Liquidity", 
              "📈 All Metrics", "🏥 System Health", "📚 Production Guide"],
-            key="main_navigation",  # ← Key único
+            key="main_navigation",
             label_visibility="collapsed"
         )
         
@@ -52,14 +53,36 @@ def render_sidebar():
         
         st.markdown("---")
         
-        # About section
+        # About section (DINÂMICO)
         st.markdown("## 📘 About")
-        st.markdown("""
-        **Data Source:** Alpha Vantage API
         
-        **Companies:**
-        - TEL - TE Connectivity
-        - ST - Sensata Technologies
-        """)
+        # Buscar empresas do banco de dados
+        engine = get_db_engine()
+        if engine:
+            try:
+                df_companies = pd.read_sql(
+                    "SELECT symbol, name FROM companies ORDER BY symbol",
+                    engine
+                )
+                
+                if not df_companies.empty:
+                    st.markdown("**Data Source:** Alpha Vantage API")
+                    st.markdown(f"**Total Companies:** {len(df_companies)}")
+                    st.markdown("")
+                    
+                    # Listar empresas dinamicamente
+                    for _, row in df_companies.iterrows():
+                        st.markdown(f"• **{row['symbol']}** - {row['name']}")
+                else:
+                    st.warning("⚠️ No companies in database")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)[:50]}")
+        else:
+            # Fallback se banco estiver indisponível
+            st.markdown("""
+            **Data Source:** Alpha Vantage API
+            
+            **Status:** Database unavailable
+            """)
     
     return page
