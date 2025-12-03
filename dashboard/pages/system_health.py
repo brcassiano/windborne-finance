@@ -5,6 +5,18 @@ import plotly.graph_objects as go
 from database import get_db_engine
 
 
+def color_status(val):
+    """Color code status values"""
+    if val == 'SUCCESS':
+        return 'background-color: #28a745; color: white'
+    elif val == 'FAILED':
+        return 'background-color: #dc3545; color: white'
+    elif val == 'RUNNING':
+        return 'background-color: #ffc107; color: black'
+    else:
+        return ''
+
+
 def show():
     """System health and ETL monitoring"""
     st.markdown("## 🔧 System Health & ETL Monitoring")
@@ -85,15 +97,8 @@ def show():
         """, engine)
         
         if not df_history.empty:
-            # Apply styling to status column
-            def highlight_status(val):
-                if val == 'SUCCESS':
-                    return 'background-color: #28a745; color: white'
-                elif val == 'FAILED':
-                    return 'background-color: #dc3545; color: white'
-                return ''
-            
-            styled_df = df.style.map(color_status, subset=['Status']) 
+            # Apply styling to status column (CORRIGIDO: usar df_history)
+            styled_df = df_history.style.map(color_status, subset=['Status'])
             
             st.dataframe(styled_df, use_container_width=True, hide_index=True)
             
