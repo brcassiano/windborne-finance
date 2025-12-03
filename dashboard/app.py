@@ -40,6 +40,13 @@ st.markdown("""
         border: 1px solid #4a4a55;
         border-radius: 8px;
     }
+    .production-box {
+        background-color: #1e1e1e;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 4px solid #00CC96;
+        margin: 10px 0;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -77,7 +84,7 @@ def test_connection():
 
 def show_system_health():
     """System health and ETL monitoring"""
-    st.markdown("## 🔧 System Health")
+    st.markdown("## 🔧 System Health & ETL Monitoring")
     
     conn = get_db_connection()
     if not conn:
@@ -101,7 +108,7 @@ def show_system_health():
         """, conn)
         
         if not df.empty:
-            st.markdown("### 📊 Latest Execution")
+            st.markdown("### 📊 Latest Execution Status")
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
@@ -123,13 +130,18 @@ def show_system_health():
                 st.metric("Companies", df['companies_processed'].iloc[0])
             
             # API stats
-            col5, col6 = st.columns(2)
+            st.markdown("### 📞 API Statistics")
+            col5, col6, col7 = st.columns(3)
             with col5:
-                st.metric("API Calls", df['api_calls_made'].iloc[0])
+                st.metric("API Calls Made", df['api_calls_made'].iloc[0])
             with col6:
                 st.metric("API Failures", df['api_failures'].iloc[0])
+            with col7:
+                failure_rate = (df['api_failures'].iloc[0] / df['api_calls_made'].iloc[0] * 100) if df['api_calls_made'].iloc[0] > 0 else 0
+                st.metric("Failure Rate", f"{failure_rate:.1f}%")
         else:
             st.warning("⚠️ No ETL runs found. Run ETL pipeline first!")
+            st.code("# Trigger via n8n webhook:\ncurl http://your-ip:5678/webhook/etl-manual")
         
         st.markdown("---")
         
@@ -213,21 +225,480 @@ def show_system_health():
                 
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # Success rate metric
-                success_rate = (chart_data['status'] == 'SUCCESS').mean() * 100
-                st.metric(
-                    "Success Rate (30 days)",
-                    f"{success_rate:.1f}%",
-                    delta=f"{len(chart_data[chart_data['status'] == 'SUCCESS'])} successful runs"
-                )
+                # Success rate and stats
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    success_rate = (chart_data['status'] == 'SUCCESS').mean() * 100
+                    st.metric(
+                        "Success Rate (30 days)",
+                        f"{success_rate:.1f}%"
+                    )
+                
+                with col2:
+                    st.metric(
+                        "Total Runs",
+                        len(chart_data)
+                    )
+                
+                with col3:
+                    st.metric(
+                        "Avg Duration",
+                        f"{chart_data['execution_time_seconds'].mean():.0f}s"
+                    )
         else:
-            st.info("👉 No execution history yet. ETL will run daily at 8 AM.")
+            st.info("👉 No execution history yet. ETL will run daily at 8 AM BRT.")
         
     except Exception as e:
         st.error(f"❌ Error loading system health: {e}")
         import traceback
         with st.expander("🐛 Debug Info"):
             st.code(traceback.format_exc())
+
+
+def show_about_production():
+    """About & Production Strategy"""
+    st.markdown("## 📚 About & Production Strategy")
+    
+    st.markdown("""
+    This page explains the current architecture and production roadmap for scaling 
+    the WindBorne Finance platform with enterprise-grade reliability.
+    """)
+    
+    # Current Architecture
+    st.markdown("---")
+    st.markdown("### 🏗️ Current Architecture")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("""
+        ```
+        ┌─────────────────────────────────────────────────────────────┐
+        │                     CURRENT STACK                           │
+        └─────────────────────────────────────────────────────────────┘
+        
+        ┌──────────────┐
+        │ Alpha Vantage│  ← External API (5 calls/min, 25/day)
+        │     API      │
+        └──────┬───────┘
+               │
+               ▼
+        ┌──────────────┐     ┌──────────────┐
+        │ ETL Pipeline │────▶│  PostgreSQL  │
+        │   (Python)   │     │   Database   │
+        │   + Flask    │     │   (Docker)   │
+        └──────┬───────┘     └──────┬───────┘
+               │                    │
+               │                    ▼
+               │             ┌──────────────┐
+               │             │  Streamlit   │
+               │             │  Dashboard   │
+               │             └──────────────┘
+               ▼
+        ┌──────────────┐
+        │     n8n      │  ← Workflow Automation
+        │  Scheduler   │     (Daily 8 AM BRT)
+        └──────────────┘
+        ```
+        """)
+    
+    with col2:
+        st.markdown("#### 🔧 Components")
+        st.markdown("""
+        **Data Layer:**
+        - PostgreSQL 16
+        - 3 Companies (TEL, ST, DD)
+        - ~4 years historical data
+        
+        **Processing:**
+        - Python ETL pipeline
+        - Flask API for triggers
+        - Calculated metrics engine
+        
+        **Automation:**
+        - n8n workflow scheduler
+        - Daily execution at 8 AM
+        - Manual trigger via webhook
+        
+        **Visualization:**
+        - Streamlit dashboard
+        - Real-time metrics
+        - Interactive charts
+        """)
+    
+    # Production Roadmap
+    st.markdown("---")
+    st.markdown("### 🚀 Production Roadmap")
+    
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📊 Google Sheets Integration",
+        "⚡ Rate Limiting Strategy", 
+        "🔄 Workflow Improvements",
+        "📈 Scaling Plan"
+    ])
+    
+    with tab1:
+        st.markdown("#### 📊 Google Sheets Integration for Executives")
+        
+        st.markdown("""
+        <div class="production-box">
+        <h4>🎯 Objective</h4>
+        Enable executives to perform ad-hoc financial analysis in Google Sheets with real-time data.
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("##### Implementation Approach:")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            **Option 1: Export + Manual Refresh** (Quick Win)
+            
+            ```
+            # Add to n8n workflow after ETL success
+            1. Query latest metrics from PostgreSQL
+            2. Format as CSV/JSON
+            3. Use Google Sheets API
+            4. Update specific sheet range
+            5. Preserve formulas and formatting
+            ```
+            
+            ✅ **Pros:**
+            - Simple to implement
+            - No API quota concerns
+            - Executives control refresh
+            
+            ⚠️ **Cons:**
+            - Manual trigger needed
+            - Not real-time
+            """)
+        
+        with col2:
+            st.markdown("""
+            **Option 2: Real-time Sync** (Advanced)
+            
+            ```
+            # Use Google Sheets as visualization layer
+            1. Create Google Apps Script
+            2. Connect to PostgreSQL via Cloud SQL
+            3. Use QUERY() and IMPORTDATA()
+            4. Auto-refresh every 5 minutes
+            5. Custom functions for metrics
+            ```
+            
+            ✅ **Pros:**
+            - Always up-to-date
+            - Familiar Excel-like interface
+            
+            ⚠️ **Cons:**
+            - More complex setup
+            - Potential performance issues
+            """)
+        
+        st.markdown("##### Recommended Architecture:")
+        
+        st.code("""
+# n8n Workflow: "Export to Google Sheets"
+
+Trigger: Schedule (after ETL success)
+  ↓
+[PostgreSQL Query] → Get latest metrics
+  ↓
+[Transform Data] → Format for Sheets (pivot tables, etc)
+  ↓
+[Google Sheets Node] → Update "Executive Dashboard" sheet
+  ↓
+[Slack Notification] → "📊 Sheets updated with latest data"
+        """, language="yaml")
+        
+        st.info("💡 **Best Practice:** Use a template sheet with pre-built charts and pivot tables. ETL updates data range only, preserving executive customizations.")
+    
+    with tab2:
+        st.markdown("#### ⚡ Rate Limiting Strategy for Alpha Vantage")
+        
+        st.markdown("""
+        <div class="production-box">
+        <h4>⚠️ API Constraints</h4>
+        <ul>
+        <li><strong>5 calls per minute</strong></li>
+        <li><strong>25 calls per day</strong> (free tier)</li>
+        <li><strong>Current usage:</strong> 9 calls per run (3 companies × 3 statements)</li>
+        </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("##### 🔐 Current Mitigation")
+            st.markdown("""
+            ```
+            # Implemented in ETL:
+            import time
+            
+            def fetch_with_rate_limit(symbol):
+                # Wait 12 seconds between calls
+                # = 5 calls/minute max
+                time.sleep(12)
+                return api.fetch(symbol)
+            ```
+            
+            **Daily Run Strategy:**
+            - Run once at 8 AM BRT
+            - 9 API calls total
+            - Leaves 16 calls for manual runs
+            - ~2 minutes execution time
+            """)
+        
+        with col2:
+            st.markdown("##### 🚀 Production Strategy")
+            st.markdown("""
+            **For scaling to 10+ companies:**
+            
+            1. **Intelligent Caching**
+               ```
+               # Only fetch if data changed
+               if last_fiscal_year_changed:
+                   fetch_new_data()
+               else:
+                   skip_api_call()
+               ```
+            
+            2. **Priority Queue**
+               ```
+               # Fetch most important first
+               priority = {
+                   'TEL': 1,  # High priority
+                   'ST': 2,
+                   'DD': 3
+               }
+               ```
+            
+            3. **Upgrade to Paid Tier**
+               - $50/month = 75 calls/min
+               - $500/month = unlimited
+            """)
+        
+        st.warning("⚡ **Recommendation:** Implement caching first, then upgrade API tier only when exceeding 25 calls/day consistently.")
+    
+    with tab3:
+        st.markdown("#### 🔄 Workflow Automation Improvements")
+        
+        st.markdown("##### Current n8n Workflow")
+        st.code("""
+[Schedule Trigger: 8 AM daily]
+  ↓
+[HTTP Request: POST /run-etl]
+  ↓
+[IF: status === 'success']
+  ↓
+┌─────────────┬─────────────┐
+│   SUCCESS   │    FAILED   │
+│   (Log)     │   (Alert)   │
+└─────────────┴─────────────┘
+        """, language="yaml")
+        
+        st.markdown("##### 🎯 Production-Ready Enhancements")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("""
+            **1. Error Recovery**
+            ```
+            [IF: ETL Failed]
+              ↓
+            [Wait: 5 minutes]
+              ↓
+            [Retry: Max 3 attempts]
+              ↓
+            [IF: Still failing]
+              ↓
+            [Alert: Slack + Email]
+            ```
+            
+            **2. Data Quality Checks**
+            ```
+            [After ETL Success]
+              ↓
+            [Query: Check row counts]
+              ↓
+            [IF: Data anomaly detected]
+              ↓
+            [Alert: Potential data issue]
+            ```
+            """)
+        
+        with col2:
+            st.markdown("""
+            **3. Multi-Stage Pipeline**
+            ```
+            Stage 1: Extract (Alpha Vantage)
+              ↓
+            Stage 2: Transform (Metrics)
+              ↓
+            Stage 3: Load (PostgreSQL)
+              ↓
+            Stage 4: Export (Google Sheets)
+              ↓
+            Stage 5: Notify (Stakeholders)
+            ```
+            
+            **4. Monitoring Hooks**
+            ```
+            [Every stage completion]
+              ↓
+            [Log: Prometheus metrics]
+              ↓
+            [Dashboard: Grafana]
+            ```
+            """)
+        
+        st.success("✅ **Priority:** Implement retry logic and data quality checks first (highest ROI).")
+    
+    with tab4:
+        st.markdown("#### 📈 Scaling Plan (10→100+ Companies)")
+        
+        st.markdown("##### Phase 1: Optimize Current Stack (1-10 companies)")
+        st.markdown("""
+        - ✅ Implement intelligent caching
+        - ✅ Add retry logic and error recovery
+        - ✅ Google Sheets integration
+        - ✅ Basic monitoring (current System Health page)
+        
+        **Estimated capacity:** 10 companies, 30 API calls/day
+        """)
+        
+        st.markdown("##### Phase 2: Horizontal Scaling (10-50 companies)")
+        st.markdown("""
+        - 🔄 Upgrade Alpha Vantage to paid tier ($50/month)
+        - 🔄 Implement job queue (Redis + Celery)
+        - 🔄 Parallel processing (process 5 companies simultaneously)
+        - 🔄 Add Grafana for ops monitoring
+        
+        **Estimated capacity:** 50 companies, 150 API calls/day
+        """)
+        
+        st.markdown("##### Phase 3: Enterprise Architecture (50-500 companies)")
+        st.markdown("""
+        ```
+        ┌──────────────────────────────────────────────────┐
+        │         LOAD BALANCER (Nginx)                    │
+        └──────────────────┬───────────────────────────────┘
+                           │
+        ┌──────────────────┼───────────────────────────────┐
+        │                  │                               │
+        ▼                  ▼                               ▼
+    [ETL Worker 1]   [ETL Worker 2]   [ETL Worker 3]
+        │                  │                               │
+        └──────────────────┴───────────────────────────────┘
+                           │
+                           ▼
+        ┌──────────────────────────────────────────────────┐
+        │     PostgreSQL Cluster (Primary + Replicas)      │
+        └──────────────────────────────────────────────────┘
+        ```
+        
+        - 🚀 Multiple ETL workers (Docker Swarm or Kubernetes)
+        - 🚀 PostgreSQL read replicas for dashboard
+        - 🚀 Redis for caching and job queue
+        - 🚀 CDN for dashboard static assets
+        - 🚀 Premium Alpha Vantage tier (unlimited calls)
+        
+        **Estimated capacity:** 500+ companies, unlimited API calls
+        """)
+        
+        st.markdown("##### Cost Estimation")
+        
+        cost_data = pd.DataFrame({
+            'Phase': ['Phase 1', 'Phase 2', 'Phase 3'],
+            'Companies': ['1-10', '10-50', '50-500'],
+            'Monthly Cost': ['$0', '$150', '$2,000+'],
+            'Components': [
+                'VPS ($0-20) + Free tier',
+                'VPS ($50) + API ($50) + Monitoring ($50)',
+                'K8s Cluster ($500) + API ($500) + DB ($500) + CDN ($300) + Staff ($200+)'
+            ]
+        })
+        
+        st.dataframe(cost_data, use_container_width=True, hide_index=True)
+    
+    # Technical Stack Details
+    st.markdown("---")
+    st.markdown("### 🛠️ Technical Stack Details")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("""
+        **Backend**
+        - Python 3.11
+        - Flask (API)
+        - psycopg2 (PostgreSQL)
+        - pandas (data processing)
+        
+        **Database**
+        - PostgreSQL 16
+        - Docker container
+        - Persistent volumes
+        """)
+    
+    with col2:
+        st.markdown("""
+        **Frontend**
+        - Streamlit 1.28+
+        - Plotly (charts)
+        - Custom CSS styling
+        
+        **Automation**
+        - n8n (workflows)
+        - Cron scheduling
+        - Webhook triggers
+        """)
+    
+    with col3:
+        st.markdown("""
+        **Infrastructure**
+        - Docker containers
+        - Easypanel (orchestration)
+        - VPS hosting
+        
+        **Monitoring**
+        - Built-in health checks
+        - Execution logs
+        - API metrics tracking
+        """)
+    
+    # Contact & Links
+    st.markdown("---")
+    st.markdown("### 📞 Additional Resources")
+    
+    st.info("""
+    **📖 Documentation:**
+    - [Alpha Vantage API Docs](https://www.alphavantage.co/documentation/)
+    - [n8n Workflow Docs](https://docs.n8n.io/)
+    - [PostgreSQL Best Practices](https://www.postgresql.org/docs/)
+    - [Google Sheets API Guide](https://developers.google.com/sheets/api)
+    
+    **🔗 Quick Links:**
+    - n8n Dashboard: `http://your-ip:5678`
+    - ETL API: `http://your-ip:5000`
+    - Database Admin: `http://your-ip:8081`
+    
+    **⚙️ Manual Operations:**
+    ```
+    # Trigger ETL manually
+    curl -X POST http://your-ip:5000/run-etl
+    
+    # View logs
+    docker logs windborne-finance-etl --tail 50
+    
+    # Database backup
+    docker exec postgres pg_dump -U postgres windborne_finance > backup.sql
+    ```
+    """)
 
 
 # Main app
@@ -242,7 +713,14 @@ def main():
         st.markdown("## 🎯 Navigation")
         page = st.radio(
             "Select View",
-            ["📈 Overview", "💰 Profitability", "💧 Liquidity", "📊 All Metrics", "🔧 System Health", "📋 ETL Logs"],
+            [
+                "📈 Overview",
+                "💰 Profitability",
+                "💧 Liquidity",
+                "📊 All Metrics",
+                "🔧 System Health",
+                "📚 About & Production"
+            ],
             label_visibility="collapsed"
         )
         
@@ -288,9 +766,9 @@ def main():
         - ST - Sensata Technologies
         - DD - DuPont de Nemours
         
-        **Update:** Daily at 8 AM
+        **Update:** Daily at 8 AM BRT
         
-        **Data Period:** Last 3 years
+        **Data Period:** Last 4 years
         """)
     
     # Routes
@@ -305,7 +783,7 @@ def main():
     elif page == "🔧 System Health":
         show_system_health()
     else:
-        show_etl_logs()
+        show_about_production()
 
 
 def show_overview():
@@ -474,7 +952,7 @@ def show_overview():
             st.dataframe(display_df, use_container_width=True, hide_index=True)
         else:
             st.warning("⚠️ No data available. Run ETL pipeline first!")
-            st.info("👉 Go to Easypanel → etl → Terminal → Run: `python main.py`")
+            st.info("👉 Trigger ETL via n8n webhook or API")
             
     except Exception as e:
         st.error(f"❌ Error: {e}")
@@ -751,119 +1229,6 @@ def show_all_metrics():
         
     except Exception as e:
         st.error(f"❌ Error: {e}")
-
-
-def show_etl_logs():
-    """ETL execution logs"""
-    st.markdown("## 📋 ETL Pipeline Logs")
-    
-    conn = get_db_connection()
-    if not conn:
-        st.error("❌ Cannot connect to database")
-        return
-    
-    try:
-        df = pd.read_sql("""
-            SELECT 
-                run_date,
-                workflow_name,
-                companies_processed,
-                api_calls_made,
-                api_failures,
-                execution_time_seconds,
-                status
-            FROM etl_runs
-            ORDER BY run_date DESC
-            LIMIT 50
-        """, conn)
-        
-        if df.empty:
-            st.info("ℹ️ No ETL runs yet. Trigger the workflow in n8n or run manually.")
-            st.code("# In Easypanel → etl → Terminal:\npython main.py")
-            return
-        
-        # Metrics
-        col1, col2, col3, col4 = st.columns(4)
-        
-        total_runs = len(df)
-        success_rate = (df['status'] == 'SUCCESS').sum() / total_runs * 100 if total_runs > 0 else 0
-        avg_time = df['execution_time_seconds'].mean()
-        last_run = df['run_date'].iloc[0]
-        
-        col1.metric("📊 Total Runs", total_runs)
-        col2.metric("✅ Success Rate", f"{success_rate:.1f}%")
-        col3.metric("⏱️ Avg Time", f"{avg_time:.0f}s")
-        col4.metric("🔄 Last Run", last_run.strftime("%m/%d %H:%M"))
-        
-        st.markdown("---")
-        
-        # Execution timeline
-        st.markdown("### 📈 Execution Timeline")
-        
-        # Preparar dados para o gráfico
-        timeline_df = df.copy()
-        timeline_df['date_str'] = timeline_df['run_date'].dt.strftime('%m/%d %H:%M')
-        
-        fig = go.Figure()
-        
-        for status in ['SUCCESS', 'FAILED']:
-            status_df = timeline_df[timeline_df['status'] == status]
-            if not status_df.empty:
-                fig.add_trace(go.Scatter(
-                    x=status_df['run_date'],
-                    y=status_df['execution_time_seconds'],
-                    mode='markers',
-                    name=status,
-                    marker=dict(
-                        size=12,
-                        color='#00CC96' if status == 'SUCCESS' else '#EF553B',
-                        symbol='circle'
-                    ),
-                    text=status_df['date_str'],
-                    hovertemplate='<b>%{text}</b><br>Time: %{y}s<br>Status: ' + status + '<extra></extra>'
-                ))
-        
-        fig.update_layout(
-            xaxis_title="Date",
-            yaxis_title="Execution Time (seconds)",
-            height=350,
-            template="plotly_dark",
-            showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Logs table
-        st.markdown("### 📋 Recent Executions")
-        display_df = df.copy()
-        display_df['run_date'] = display_df['run_date'].dt.strftime('%Y-%m-%d %H:%M:%S')
-        display_df.columns = ['Date', 'Workflow', 'Companies', 'API Calls', 
-                               'Failures', 'Time (s)', 'Status']
-        
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
-        
-        # Quick stats
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.markdown("#### ⏱️ Execution Time Stats")
-            st.write(f"**Min:** {df['execution_time_seconds'].min():.0f}s")
-            st.write(f"**Max:** {df['execution_time_seconds'].max():.0f}s")
-            st.write(f"**Avg:** {df['execution_time_seconds'].mean():.0f}s")
-        
-        with col2:
-            st.markdown("#### 📞 API Calls Stats")
-            st.write(f"**Total Calls:** {df['api_calls_made'].sum()}")
-            st.write(f"**Total Failures:** {df['api_failures'].sum()}")
-            failure_rate = (df['api_failures'].sum() / df['api_calls_made'].sum() * 100) if df['api_calls_made'].sum() > 0 else 0
-            st.write(f"**Failure Rate:** {failure_rate:.1f}%")
-        
-    except Exception as e:
-        st.error(f"❌ Error: {e}")
-        import traceback
-        with st.expander("🐛 Debug Info"):
-            st.code(traceback.format_exc())
 
 
 if __name__ == "__main__":
