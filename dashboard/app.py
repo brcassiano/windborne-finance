@@ -12,6 +12,23 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# OCULTAR MENU HAMBURGER E PÁGINAS AUTOMÁTICAS
+st.markdown("""
+    <style>
+        /* Ocultar menu hamburger */
+        [data-testid="stSidebarNav"] {display: none;}
+        
+        /* Ocultar header do Streamlit */
+        header {visibility: hidden;}
+        
+        /* Ajustar padding do topo */
+        .block-container {padding-top: 2rem;}
+    </style>
+""", unsafe_allow_html=True)
+
+# Renderizar sidebar customizada
+render_sidebar()
+
 
 # Custom CSS
 st.markdown("""
