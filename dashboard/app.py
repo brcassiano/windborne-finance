@@ -110,11 +110,8 @@ def test_connection():
 
 
 def show_system_health():
-    """System health and ETL monitoring"""
-    st.markdown("## 🔧 System Health & ETL Monitoring")
-    
-    conn = get_db_connection()
-    if not conn:
+    engine = get_db_engine()
+    if not engine:
         st.error("❌ Cannot connect to database")
         return
     
@@ -281,9 +278,6 @@ def show_system_health():
         import traceback
         with st.expander("🐛 Debug Info"):
             st.code(traceback.format_exc())
-    finally:
-        if conn:
-            conn.close()
 
 
 def show_about_production():
