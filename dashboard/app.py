@@ -187,12 +187,17 @@ def show_overview():
         
         st.markdown("---")
         
-        # Latest metrics comparison
-        st.markdown("## 📈 Latest Performance (Most Recent Year)")
+        # Latest metrics comparison - MODIFICADO
+        st.markdown("## 📈 Latest Performance (Most Recent Year Per Company)")
         
+        # Query que pega o último ano disponível de CADA empresa
         query = """
-            WITH latest_year AS (
-                SELECT MAX(fiscal_year) as year FROM calculated_metrics
+            WITH latest_per_company AS (
+                SELECT 
+                    company_id,
+                    MAX(fiscal_year) as latest_year
+                FROM calculated_metrics
+                GROUP BY company_id
             )
             SELECT 
                 c.symbol,
@@ -210,7 +215,8 @@ def show_overview():
                     THEN cm.metric_value END) as revenue_growth
             FROM calculated_metrics cm
             JOIN companies c ON cm.company_id = c.id
-            WHERE cm.fiscal_year = (SELECT year FROM latest_year)
+            JOIN latest_per_company lpc ON cm.company_id = lpc.company_id 
+                AND cm.fiscal_year = lpc.latest_year
             GROUP BY c.symbol, c.name, cm.fiscal_year
             ORDER BY c.symbol
         """
@@ -218,6 +224,11 @@ def show_overview():
         df = pd.read_sql(query, conn)
         
         if not df.empty:
+            # Show year info
+            year_info = df.groupby('fiscal_year')['symbol'].apply(list).to_dict()
+            year_text = " | ".join([f"{year}: {', '.join(symbols)}" for year, symbols in year_info.items()])
+            st.info(f"📅 **Years shown:** {year_text}")
+            
             # Create comparison charts
             col1, col2 = st.columns(2)
             
@@ -230,13 +241,18 @@ def show_overview():
                     ('operating_margin', 'Operating Margin', '#AB63FA'),
                     ('net_margin', 'Net Margin', '#FFA15A')
                 ]:
+                    # Adicionar ano no label
+                    labels = [f"{row['symbol']}<br>({row['fiscal_year']})" for _, row in df.iterrows()]
+                    
                     fig.add_trace(go.Bar(
                         name=name,
                         x=df['symbol'],
                         y=df[col],
                         text=df[col].round(1).astype(str) + '%',
                         textposition='auto',
-                        marker_color=color
+                        marker_color=color,
+                        customdata=df[['fiscal_year']],
+                        hovertemplate='<b>%{x}</b><br>Year: %{customdata[0]}<br>' + name + ': %{y:.2f}%<extra></extra>'
                     ))
                 
                 fig.update_layout(
@@ -260,7 +276,9 @@ def show_overview():
                     text=df['current_ratio'].round(2).astype(str),
                     textposition='auto',
                     marker_color='#636EFA',
-                    yaxis='y'
+                    yaxis='y',
+                    customdata=df[['fiscal_year']],
+                    hovertemplate='<b>%{x}</b><br>Year: %{customdata[0]}<br>Current Ratio: %{y:.2f}<extra></extra>'
                 ))
                 
                 fig.add_trace(go.Scatter(
@@ -272,7 +290,9 @@ def show_overview():
                     mode='lines+markers+text',
                     marker=dict(size=12, color='#EF553B'),
                     yaxis='y2',
-                    line=dict(width=3)
+                    line=dict(width=3),
+                    customdata=df[['fiscal_year']],
+                    hovertemplate='<b>%{x}</b><br>Year: %{customdata[0]}<br>Revenue Growth: %{y:.2f}%<extra></extra>'
                 ))
                 
                 fig.update_layout(
