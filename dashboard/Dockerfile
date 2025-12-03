@@ -1,4 +1,3 @@
-cat > Dockerfile << 'EOF'
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -20,4 +19,3 @@ EXPOSE 8501
 
 # Run streamlit
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
-EOF

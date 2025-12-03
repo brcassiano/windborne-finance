@@ -1,4 +1,3 @@
-cat > app.py << 'EOF'
 import streamlit as st
 import pandas as pd
 import psycopg2
@@ -250,4 +249,3 @@ def show_etl_logs():
 
 if __name__ == "__main__":
     main()
-EOF

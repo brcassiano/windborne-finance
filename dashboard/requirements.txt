@@ -1,8 +1,4 @@
-cd windborne-finance/dashboard
-
-cat > requirements.txt << 'EOF'
 streamlit==1.29.0
 psycopg2-binary==2.9.9
 pandas==2.1.4
 plotly==5.18.0
-EOF
