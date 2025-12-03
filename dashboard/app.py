@@ -3,6 +3,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import psycopg2
+from sqlalchemy import create_engine
+import urllib.parse
 import os
 from datetime import datetime
 import time
@@ -68,9 +70,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# Database connection with shorter cache time for refresh
+# Database connections
 @st.cache_resource(ttl=60)
 def get_db_connection():
+    """Get psycopg2 connection for test_connection only"""
     try:
         conn = psycopg2.connect(
             host=os.getenv('POSTGRES_HOST', 'postgres'),
@@ -82,6 +85,29 @@ def get_db_connection():
         return conn
     except Exception as e:
         st.error(f"❌ Database connection failed: {e}")
+        return None
+
+
+@st.cache_resource(ttl=60)
+def get_db_engine():
+    """Get SQLAlchemy engine for pandas queries"""
+    try:
+        password = urllib.parse.quote_plus(os.getenv('POSTGRES_PASSWORD', ''))
+        host = os.getenv('POSTGRES_HOST', 'postgres')
+        port = os.getenv('POSTGRES_PORT', 5432)
+        database = os.getenv('POSTGRES_DB', 'windborne_finance')
+        user = os.getenv('POSTGRES_USER', 'postgres')
+        
+        connection_string = f"postgresql://{user}:{password}@{host}:{port}/{database}"
+        engine = create_engine(connection_string, pool_pre_ping=True)
+        
+        # Test connection
+        with engine.connect() as conn:
+            conn.execute("SELECT 1")
+        
+        return engine
+    except Exception as e:
+        st.error(f"❌ Database engine creation failed: {e}")
         return None
 
 
@@ -104,8 +130,8 @@ def show_system_health():
     """System health and ETL monitoring"""
     st.markdown("## 🔧 System Health & ETL Monitoring")
     
-    conn = get_db_connection()
-    if not conn:
+    engine = get_db_engine()
+    if not engine:
         st.error("❌ Cannot connect to database")
         return
     
@@ -123,7 +149,7 @@ def show_system_health():
             FROM etl_runs
             ORDER BY run_date DESC
             LIMIT 1
-        """, conn)
+        """, engine)
         
         if not df.empty:
             st.markdown("### 📊 Latest Execution Status")
@@ -177,7 +203,7 @@ def show_system_health():
             FROM etl_runs
             WHERE run_date > NOW() - INTERVAL '30 days'
             ORDER BY run_date DESC
-        """, conn)
+        """, engine)
         
         if not df_history.empty:
             # Apply styling to status column
@@ -207,7 +233,7 @@ def show_system_health():
                 FROM etl_runs
                 WHERE run_date > NOW() - INTERVAL '30 days'
                 ORDER BY run_date ASC
-            """, conn)
+            """, engine)
             
             if not chart_data.empty:
                 fig = go.Figure()
@@ -272,9 +298,6 @@ def show_system_health():
         import traceback
         with st.expander("🐛 Debug Info"):
             st.code(traceback.format_exc())
-    finally:
-        if conn:
-            conn.close()
 
 
 def show_about_production():
@@ -288,7 +311,7 @@ def show_about_production():
     
     # Current Architecture
     st.markdown("---")
-    st.markdown("### 🏗️ Current Architecture Overview")
+    st.markdown("### ✍🏼⚙️ Current Architecture Overview")
     
     col1, col2 = st.columns([3, 2])
     
@@ -297,45 +320,55 @@ def show_about_production():
         <div class="code-box">
 ┌─────────────────────────────────────────────────────────┐
 │                   WINDBORNE FINANCE                     │
-│               Current Production Stack                  │
+│              Production Architecture                    │
 └─────────────────────────────────────────────────────────┘
 
-┌──────────────────┐
-│  Alpha Vantage   │ ← External API
-│      API         │   • 5 calls/minute
-└────────┬─────────┘   • 25 calls/day (free tier)
-         │
-         ↓ [HTTP GET]
-┌──────────────────┐     ┌──────────────────┐
-│  ETL Pipeline    │────→│   PostgreSQL     │
-│   (Python 3.11)  │     │   Database 16    │
-│                  │     │   (Docker)       │
-│  • Extractors    │     │                  │
-│  • Transformers  │←────│  • companies     │
-│  • Loaders       │     │  • statements    │
-│  • Calculators   │     │  • metrics       │
-│                  │     │  • etl_runs      │
-│  Flask API :5000 │     └────────┬─────────┘
-└────────┬─────────┘              │
-         │                        │
-         ↓                        ↓
-┌──────────────────┐     ┌──────────────────┐
-│    n8n Server    │     │   Streamlit      │
-│  (Automation)    │     │   Dashboard      │
-│                  │     │   (Python)       │
-│  • Schedule      │     │                  │
-│    Trigger       │     │  • 5 pages       │
-│    (8 AM daily)  │     │  • Plotly charts │
-│                  │     │  • Real-time     │
-│  • HTTP Request  │     └──────────────────┘
-│  • Error Handler │
-└──────────────────┘
-
-┌──────────────────────────────────────────────────────────┐
-│  Infrastructure: Docker Containers on VPS                │
-│  Management: Easypanel (Docker UI)                       │
-│  Networking: Internal Docker network                     │
-└──────────────────────────────────────────────────────────┘
+                 EXECUTION FLOW
+                 
+    ┌─────────────┐
+    │    n8n      │ ← Orchestrator
+    │  Scheduler  │   (8 AM daily)
+    └──────┬──────┘
+           │
+           ↓ [Schedule Trigger]
+           
+    ┌─────────────┐
+    │ HTTP Node   │ ← POST /run-etl
+    └──────┬──────┘
+           │
+           ↓
+           
+    ┌─────────────┐
+    │ Flask API   │ ← :5000
+    └──────┬──────┘
+           │
+           ↓
+           
+    ┌─────────────┐      ┌──────────────┐
+    │ ETL Python  │─────→│ Alpha Vantage│
+    │  Pipeline   │←─────│     API      │
+    └──────┬──────┘      └──────────────┘
+           │              • 5 calls/min
+           │              • 25 calls/day
+           ↓
+           
+    ┌─────────────┐
+    │ PostgreSQL  │ ← Storage
+    │  Database   │   • companies
+    │  (Docker)   │   • statements
+    └──────┬──────┘   • metrics
+           │
+           ↑ [reads data]
+           
+    ┌─────────────┐
+    │  Streamlit  │ ← Visualization
+    │  Dashboard  │   :8501
+    └─────────────┘
+    
+┌─────────────────────────────────────────────────────────┐
+│  Infrastructure: Docker on VPS                          │
+│  Management: Easypanel (Docker UI)                      │
+└─────────────────────────────────────────────────────────┘
         </div>
         """, unsafe_allow_html=True)
     
@@ -367,7 +400,7 @@ def show_about_production():
         
         **Infrastructure:**
         - Docker containers
-        - Easypanel (UI)
+        - Easypanel (Docker UI)
         - VPS hosting
         - Persistent volumes
         """)
@@ -1269,8 +1302,8 @@ Notification  Alert + Retry Logic
         docker logs etl --tail 50
         
         # Database backup
-        docker exec postgres pg_dump \
-          -U postgres windborne_finance \
+        docker exec postgres pg_dump \\
+          -U postgres windborne_finance \\
           > backup.sql
         ```
         """)
@@ -1363,8 +1396,8 @@ def main():
 
 def show_overview():
     """Overview page with key metrics"""
-    conn = get_db_connection()
-    if not conn:
+    engine = get_db_engine()
+    if not engine:
         st.error("❌ Cannot connect to database")
         return
     
@@ -1373,28 +1406,28 @@ def show_overview():
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            df = pd.read_sql("SELECT COUNT(*) as count FROM companies", conn)
+            df = pd.read_sql("SELECT COUNT(*) as count FROM companies", engine)
             st.metric("🏢 Companies", df['count'].iloc[0])
         
         with col2:
             df = pd.read_sql("""
                 SELECT COUNT(DISTINCT fiscal_year) as count 
                 FROM calculated_metrics
-            """, conn)
+            """, engine)
             st.metric("📅 Years of Data", df['count'].iloc[0])
         
         with col3:
             df = pd.read_sql("""
                 SELECT COUNT(*) as count 
                 FROM calculated_metrics
-            """, conn)
+            """, engine)
             st.metric("📊 Total Metrics", f"{df['count'].iloc[0]:,}")
         
         with col4:
             df = pd.read_sql("""
                 SELECT run_date FROM etl_runs 
                 ORDER BY run_date DESC LIMIT 1
-            """, conn)
+            """, engine)
             if not df.empty:
                 last_run = df['run_date'].iloc[0]
                 st.metric("🔄 Last Update", last_run.strftime("%m/%d/%Y"))
@@ -1436,7 +1469,7 @@ def show_overview():
             ORDER BY c.symbol
         """
         
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(query, engine)
         
         if not df.empty:
             # Show year info
@@ -1534,17 +1567,14 @@ def show_overview():
         import traceback
         with st.expander("🐛 Debug Info"):
             st.code(traceback.format_exc())
-    finally:
-        if conn:
-            conn.close()
 
 
 def show_profitability():
     """Profitability trends over time"""
     st.markdown("## 💰 Profitability Analysis")
     
-    conn = get_db_connection()
-    if not conn:
+    engine = get_db_engine()
+    if not engine:
         st.error("❌ Cannot connect to database")
         return
     
@@ -1555,7 +1585,7 @@ def show_profitability():
         with col1:
             companies_df = pd.read_sql("""
                 SELECT DISTINCT symbol FROM companies ORDER BY symbol
-            """, conn)
+            """, engine)
             selected_companies = st.multiselect(
                 "Select Companies",
                 companies_df['symbol'].tolist(),
@@ -1566,7 +1596,7 @@ def show_profitability():
             years_df = pd.read_sql("""
                 SELECT DISTINCT fiscal_year FROM calculated_metrics 
                 ORDER BY fiscal_year DESC
-            """, conn)
+            """, engine)
             selected_years = st.multiselect(
                 "Select Years",
                 years_df['fiscal_year'].tolist(),
@@ -1599,7 +1629,7 @@ def show_profitability():
             ORDER BY c.symbol, cm.fiscal_year
         """
         
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(query, engine)
         
         if df.empty:
             st.warning("⚠️ No data found for selected filters")
@@ -1634,17 +1664,14 @@ def show_profitability():
             
     except Exception as e:
         st.error(f"❌ Error: {e}")
-    finally:
-        if conn:
-            conn.close()
 
 
 def show_liquidity():
     """Liquidity metrics"""
     st.markdown("## 💧 Liquidity & Solvency")
     
-    conn = get_db_connection()
-    if not conn:
+    engine = get_db_engine()
+    if not engine:
         st.error("❌ Cannot connect to database")
         return
     
@@ -1664,7 +1691,7 @@ def show_liquidity():
             ORDER BY c.symbol, cm.fiscal_year
         """
         
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(query, engine)
         
         if df.empty:
             st.warning("⚠️ No liquidity data available")
@@ -1720,17 +1747,14 @@ def show_liquidity():
         
     except Exception as e:
         st.error(f"❌ Error: {e}")
-    finally:
-        if conn:
-            conn.close()
 
 
 def show_all_metrics():
     """Show all metrics in table format"""
     st.markdown("## 📊 All Financial Metrics")
     
-    conn = get_db_connection()
-    if not conn:
+    engine = get_db_engine()
+    if not engine:
         st.error("❌ Cannot connect to database")
         return
     
@@ -1739,7 +1763,7 @@ def show_all_metrics():
         col1, col2 = st.columns(2)
         
         with col1:
-            companies_df = pd.read_sql("SELECT DISTINCT symbol FROM companies ORDER BY symbol", conn)
+            companies_df = pd.read_sql("SELECT DISTINCT symbol FROM companies ORDER BY symbol", engine)
             selected_companies = st.multiselect(
                 "Companies",
                 companies_df['symbol'].tolist(),
@@ -1750,7 +1774,7 @@ def show_all_metrics():
             years_df = pd.read_sql("""
                 SELECT DISTINCT fiscal_year FROM calculated_metrics 
                 ORDER BY fiscal_year DESC
-            """, conn)
+            """, engine)
             selected_years = st.multiselect(
                 "Years",
                 years_df['fiscal_year'].tolist(),
@@ -1778,7 +1802,7 @@ def show_all_metrics():
             ORDER BY c.symbol, cm.fiscal_year DESC, cm.metric_category, cm.metric_name
         """
         
-        df = pd.read_sql(query, conn)
+        df = pd.read_sql(query, engine)
         
         if df.empty:
             st.warning("⚠️ No data available")
@@ -1813,9 +1837,6 @@ def show_all_metrics():
         
     except Exception as e:
         st.error(f"❌ Error: {e}")
-    finally:
-        if conn:
-            conn.close()
 
 
 if __name__ == "__main__":
