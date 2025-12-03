@@ -1,9 +1,4 @@
-#!/usr/bin/env python3
-"""
-Main ETL pipeline for WindBorne Finance
-Extracts data from Alpha Vantage, transforms, and loads into PostgreSQL
-"""
-
+import os
 import logging
 import time
 from datetime import datetime
@@ -16,6 +11,12 @@ from loaders.postgres_loader import PostgresLoader
 from calculators.financial_metrics import FinancialMetricsCalculator
 from config import settings
 
+# Create logs directory if it doesn't exist
+log_dir = '/app/logs'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+    print(f"Created logs directory: {log_dir}")
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -26,6 +27,7 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
 
 def main():
     """Main ETL pipeline"""
@@ -142,8 +144,15 @@ def main():
         logger.info(f"  Status: {stats['status']}")
         logger.info(f"{'='*60}")
         
+        # Close loader connection
+        try:
+            loader.close()
+        except:
+            pass
+        
         # Exit with appropriate code
         sys.exit(0 if stats['status'] == 'SUCCESS' else 1)
+
 
 if __name__ == "__main__":
     main()
