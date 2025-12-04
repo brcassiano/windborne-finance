@@ -78,13 +78,35 @@ st.markdown(
         font-size: 1.8rem !important;
     }
     
-    /* === TABELA DETAILED METRICS - SEM SCROLL, CRESCE NATURALMENTE === */
+    /* === TABELA DETAILED METRICS - 100% FLUIDA SEM SCROLL === */
     div[data-testid="stDataFrame"] {
         width: 100% !important;
+        overflow: visible !important;
     }
     
     div[data-testid="stDataFrame"] > div {
         width: 100% !important;
+        overflow: visible !important;
+        max-width: 100% !important;
+    }
+    
+    /* Força a tabela interna a ser 100% responsiva */
+    div[data-testid="stDataFrame"] table {
+        width: 100% !important;
+        table-layout: auto !important;
+    }
+    
+    /* Remove qualquer scroll do container pai */
+    div[data-testid="stDataFrame"] > div > div {
+        overflow: visible !important;
+        width: 100% !important;
+    }
+    
+    /* Força células a ajustarem conteúdo */
+    div[data-testid="stDataFrame"] td,
+    div[data-testid="stDataFrame"] th {
+        white-space: normal !important;
+        word-wrap: break-word !important;
     }
     
     /* === GRÁFICOS - LARGURA MÍNIMA PARA EVITAR TEXTOS VERTICAIS === */
