@@ -4,16 +4,46 @@ from datetime import datetime
 from database import test_connection  # se o nome for diferente, ajuste aqui
 
 
+# CSS global para deixar o botão Refresh Now azul chamativo
+def _inject_sidebar_css():
+    st.markdown(
+        """
+        <style>
+        /* Botão Refresh Now no sidebar */
+        div[data-testid="stSidebar"] div.stButton > button {
+            background-color: #1f6feb !important;
+            color: white !important;
+            border-radius: 6px !important;
+            border: none !important;
+            font-weight: 600 !important;
+        }
+        div[data-testid="stSidebar"] div.stButton > button:hover {
+            background-color: #1158c7 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_sidebar() -> str:
     """Render the left sidebar and return selected page name."""
+
+    _inject_sidebar_css()
 
     with st.sidebar:
         st.markdown("## 🧭 Navigation")
 
         page = st.radio(
             "Select View",
-            ["📊 Overview", "💰 Profitability", "💧 Liquidity",
-             "📈 All Metrics", "🏥 System Health", "📚 Production Guide"],
+            [
+                "📊 Overview",
+                "💰 Profitability",
+                "💧 Liquidity",
+                "📈 All Metrics",
+                "🏥 System Health",
+                "📚 Production Guide",
+            ],
             label_visibility="collapsed",
         )
 
@@ -27,7 +57,7 @@ def render_sidebar() -> str:
         col1, col2 = st.columns([2, 1])
 
         with col1:
-            if st.button("Refresh Now", use_container_width=True):
+            if st.button("Refresh Now", use_container_width=True, key="refresh_now"):
                 st.cache_resource.clear()
                 st.cache_data.clear()
                 st.success("Refreshed!")
