@@ -115,6 +115,7 @@ def show():
                             lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A"
                         ),
                         textposition="auto",
+                        textangle=0,  # FORÇA TEXTO HORIZONTAL
                         textfont=dict(
                             size=14,
                             color="white",
@@ -145,6 +146,10 @@ def show():
                     x=1,
                 ),
                 margin=dict(l=60, r=60, t=50, b=80),
+                # FORÇA GRÁFICO A MANTER PROPORÇÃO
+                xaxis=dict(
+                    tickangle=0,  # labels do eixo X sempre horizontais
+                ),
             )
 
             st.plotly_chart(fig, use_container_width=True)
@@ -167,6 +172,7 @@ def show():
                         lambda x: f"{x:.2f}" if pd.notna(x) else "N/A"
                     ),
                     textposition="auto",
+                    textangle=0,  # FORÇA TEXTO HORIZONTAL
                     textfont=dict(
                         size=14,
                         color="white",
@@ -195,6 +201,7 @@ def show():
                         lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A"
                     ),
                     textposition="top center",
+                    textangle=0,  # FORÇA TEXTO HORIZONTAL
                     textfont=dict(
                         size=12,
                         color="white",
@@ -230,6 +237,10 @@ def show():
                 ),
                 hovermode="x unified",
                 margin=dict(l=60, r=150, t=50, b=80),
+                # FORÇA LABELS SEMPRE HORIZONTAIS
+                xaxis=dict(
+                    tickangle=0,
+                ),
             )
 
             st.plotly_chart(fig, use_container_width=True)

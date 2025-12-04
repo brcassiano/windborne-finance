@@ -16,7 +16,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 from components.sidebar import render_sidebar
 from pages import overview, profitability, liquidity, all_metrics, system_health, production
 
-# CSS global - SIMPLIFICADO
+# CSS global
 st.markdown(
     """
     <style>
@@ -38,6 +38,29 @@ st.markdown(
         display: none !important;
     }
     
+    /* === CUSTOMIZAR BOTÃO DE COLLAPSE DA SIDEBAR === */
+    /* Esconde o X padrão */
+    button[kind="header"] svg {
+        display: none;
+    }
+    
+    /* Adiciona seta < quando sidebar está aberta */
+    button[kind="header"]::after {
+        content: "‹";
+        font-size: 2rem;
+        font-weight: bold;
+        color: white;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+    }
+    
+    /* Adiciona seta > quando sidebar está fechada */
+    section[data-testid="stSidebar"][aria-expanded="false"] + div button[kind="header"]::after {
+        content: "›";
+    }
+    
     /* === MÉTRICAS === */
     .stMetric {
         background-color: #262730;
@@ -53,6 +76,29 @@ st.markdown(
     
     .stMetric [data-testid="stMetricValue"] {
         font-size: 1.8rem !important;
+    }
+    
+    /* === TABELA DETAILED METRICS - CORRIGE BUG DE ZOOM === */
+    div[data-testid="stDataFrame"] {
+        overflow-x: auto !important;
+        width: 100% !important;
+    }
+    
+    div[data-testid="stDataFrame"] > div {
+        overflow-x: auto !important;
+        max-width: 100% !important;
+    }
+    
+    /* Força scroll horizontal se necessário */
+    .dataframe {
+        display: block !important;
+        overflow-x: auto !important;
+        white-space: nowrap !important;
+    }
+    
+    /* === GRÁFICOS - LARGURA MÍNIMA PARA EVITAR TEXTOS VERTICAIS === */
+    div[data-testid="stPlotlyChart"] {
+        min-width: 500px !important;
     }
     
     /* === EXPANDERS === */
