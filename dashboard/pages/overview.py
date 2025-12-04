@@ -144,7 +144,12 @@ def show():
                     xanchor="right",
                     x=1,
                 ),
+                margin=dict(l=40, r=130, t=40, b=40),  # mesmas margens do gráfico direito
             )
+
+            fig.update_xaxes(automargin=True)
+            fig.update_yaxes(automargin=True)
+
             st.plotly_chart(fig, use_container_width=True)
 
         # ---------------- Financial Health ----------------
@@ -192,14 +197,14 @@ def show():
                     text=df["revenue_growth"].apply(
                         lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A"
                     ),
-                    textposition="top center",  # pode trocar para 'top right'
+                    textposition="top center",
                     textfont=dict(
-                        size=12,               # menor para caber melhor
+                        size=12,
                         color="white",
                         family="Arial Black",
                     ),
                     texttemplate="%{text}",
-                    cliponaxis=False,         # impede que o texto seja cortado
+                    cliponaxis=False,
                     customdata=df[["fiscal_year"]],
                     hovertemplate=(
                         "<b>%{x}</b><br>"
