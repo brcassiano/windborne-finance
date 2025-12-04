@@ -15,24 +15,6 @@ st.set_page_config(
     }
 )
 
-# Linkks and preview Meta Tags
-st.markdown("""
-    <head>
-        <meta property="og:title" content="WindBorne Finance Dashboard" />
-        <meta property="og:description" content="Real-time financial metrics and analysis for TE Connectivity, Sensata Technologies, and DuPont de Nemours" />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://windborne-finance-dashboard.wuf9gl.easypanel.host/" />
-        <meta property="og:image" content="https://windborne-finance-dashboard.wuf9gl.easypanel.host/~/+/favicon.png" />
-        
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="WindBorne Finance Dashboard" />
-        <meta name="twitter:description" content="Real-time financial metrics for TEL, ST, and DD" />
-        
-        <meta name="description" content="Financial analysis dashboard with profitability margins, liquidity ratios, and growth metrics for public companies" />
-        <meta name="keywords" content="finance, dashboard, metrics, alpha vantage, streamlit" />
-    </head>
-""", unsafe_allow_html=True)
-
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
