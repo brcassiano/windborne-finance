@@ -166,7 +166,7 @@ def _render_architecture():
 def _render_database_schema():
     """Render database schema section"""
     st.markdown("---")
-    st.markdown("### 🗄️ Database Schema & Indexing Strategy")
+    st.markdown("### 🛢 Database Schema & Indexing Strategy")
     
     col1, col2 = st.columns(2)
     
