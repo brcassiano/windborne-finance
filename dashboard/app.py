@@ -1,20 +1,20 @@
-import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
-warnings.filterwarnings('ignore', message='.*to_pydatetime.*')
-
 """Main Streamlit application"""
 import streamlit as st
-from components.sidebar import render_sidebar
-from pages import overview, profitability, liquidity, all_metrics, system_health, production
 
-
-# Page config
+# Page config DEVE ser a PRIMEIRA coisa (antes de qualquer outro código)
 st.set_page_config(
     page_title="WindBorne Finance",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
+
+# Imports do projeto
+from components.sidebar import render_sidebar
+from pages import overview, profitability, liquidity, all_metrics, system_health, production
 
 
 # OCULTAR MENU HAMBURGER E PÁGINAS AUTOMÁTICAS
@@ -30,10 +30,6 @@ st.markdown("""
         .block-container {padding-top: 2rem;}
     </style>
 """, unsafe_allow_html=True)
-
-
-# ❌ REMOVER ESTA LINHA (linha 36):
-# render_sidebar()  # ← DELETAR!
 
 
 # Custom CSS
@@ -88,12 +84,14 @@ st.markdown("""
 
 
 def main():
+    """Main application logic"""
+    
     # Header
     st.markdown("# 📊 WindBorne Finance Dashboard")
     st.markdown("### Real-time financial metrics for TEL, ST, and DD")
     st.markdown("---")
     
-    # Render sidebar and get selected page (ÚNICA CHAMADA!)
+    # Render sidebar and get selected page
     page = render_sidebar()
     
     # Route to appropriate page
