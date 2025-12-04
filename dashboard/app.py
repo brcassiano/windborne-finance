@@ -67,13 +67,9 @@ st.markdown(
     header {visibility: hidden;}
     .block-container {padding-top: 2rem;}
 
-    /* === ESCONDER MENU PADRÃO DO APP NA SIDEBAR === */
-    /* Navegação multipage nativa */
+    /* === ESCONDER APENAS O MENU DE PÁGINAS PADRÃO DO STREAMLIT === */
+    /* Remove o container de navegação de páginas nativo */
     [data-testid="stSidebarNav"] {
-        display: none !important;
-    }
-    /* Bloco superior onde aparece o título "app" */
-    section[data-testid="stSidebar"] > div:nth-of-type(1) {
         display: none !important;
     }
     </style>
@@ -98,7 +94,7 @@ def check_auto_refresh():
     if "last_refresh_date" not in st.session_state:
         st.session_state.last_refresh_date = now.date()
 
-    # 8h30 local (São Paulo)
+    # 8h30 local (São Paulo) – assume servidor com timezone correto
     refresh_time = time(8, 30)
 
     if now.time() > refresh_time and st.session_state.last_refresh_date < now.date():
