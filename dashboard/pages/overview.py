@@ -20,7 +20,9 @@ def show():
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        companies_count = pd.read_sql("SELECT COUNT(*) as count FROM companies", engine)
+        companies_count = pd.read_sql(
+            "SELECT COUNT(*) as count FROM companies", engine
+        )
         st.metric("🏢 Companies", companies_count["count"].iloc[0])
 
     with col2:
@@ -84,7 +86,9 @@ def show():
     if not df.empty:
         # Info box showing which years are displayed
         years_shown = df.groupby("symbol")["fiscal_year"].first().to_dict()
-        years_text = ", ".join([f"{symbol}: {year}" for symbol, year in years_shown.items()])
+        years_text = ", ".join(
+            [f"{symbol}: {year}" for symbol, year in years_shown.items()]
+        )
         st.info(f"📅 Years shown: {years_text}")
 
         st.markdown("---")
@@ -112,7 +116,9 @@ def show():
                         ),
                         textposition="auto",
                         textfont=dict(
-                            size=14, color="white", family="Arial Black"
+                            size=14,
+                            color="white",
+                            family="Arial Black",
                         ),
                         marker_color=color,
                         customdata=df[["fiscal_year"]],
@@ -142,7 +148,7 @@ def show():
             st.plotly_chart(fig, use_container_width=True)
 
         # ---------------- Financial Health ----------------
-                with col2:
+        with col2:
             st.markdown("### 📊 Financial Health")
 
             fig = go.Figure()
@@ -186,7 +192,7 @@ def show():
                     text=df["revenue_growth"].apply(
                         lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A"
                     ),
-                    textposition="top center",  # pode mudar para 'top right' se preferir
+                    textposition="top center",  # pode trocar para 'top right'
                     textfont=dict(
                         size=12,               # menor para caber melhor
                         color="white",
@@ -221,14 +227,13 @@ def show():
                     x=1,
                 ),
                 hovermode="x unified",
-                margin=dict(l=40, r=130, t=40, b=40),  # margem direita bem maior
+                margin=dict(l=40, r=130, t=40, b=40),
             )
 
             fig.update_xaxes(automargin=True)
             fig.update_yaxes(automargin=True)
 
             st.plotly_chart(fig, use_container_width=True)
-
 
         st.markdown("---")
 
