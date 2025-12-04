@@ -68,7 +68,7 @@ def show():
 def _render_architecture():
     """Render architecture overview section"""
     st.markdown("---")
-    st.markdown("### 🏗️ Current Architecture Overview")
+    st.markdown("### 🛠️⚙️ Current Architecture Overview")
     
     col1, col2 = st.columns([3, 2])
     
