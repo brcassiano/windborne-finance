@@ -174,7 +174,8 @@ def show():
                 yaxis2=dict(title="Revenue Growth (%)", overlaying='y', side='right'),
                 template="plotly_dark",
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                hovermode='x unified'
+                hovermode='x unified',
+                margin=dict(r=50)  # ← MARGEM DIREITA
             )
             
             st.plotly_chart(fig, use_container_width=True)

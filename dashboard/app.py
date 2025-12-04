@@ -1,5 +1,6 @@
 """Main Streamlit application"""
 import streamlit as st
+from datetime import datetime, time
 
 # Page config DEVE ser a PRIMEIRA coisa (antes de qualquer outro código)
 st.set_page_config(
@@ -9,6 +10,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# AGORA sim, silenciar warnings (depois do set_page_config)
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
@@ -83,8 +85,29 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+# AUTO-REFRESH: Verificar se precisa recarregar dados (1x por dia às 8:30 AM)
+def check_auto_refresh():
+    """Check if data needs to be refreshed based on ETL schedule"""
+    now = datetime.now()
+    
+    # Inicializar session state
+    if 'last_refresh_date' not in st.session_state:
+        st.session_state.last_refresh_date = now.date()
+    
+    # Verificar se passou das 8:30 AM e ainda não atualizou hoje
+    refresh_time = time(8, 30)  # 8:30 AM (30min após o ETL às 8:00 AM)
+    
+    if now.time() > refresh_time and st.session_state.last_refresh_date < now.date():
+        st.session_state.last_refresh_date = now.date()
+        st.cache_data.clear()  # Limpar cache do Streamlit
+        st.rerun()  # Recarregar aplicação
+
+
 def main():
     """Main application logic"""
+    
+    # Verificar auto-refresh
+    check_auto_refresh()
     
     # Header
     st.markdown("# 📊 WindBorne Finance Dashboard")
