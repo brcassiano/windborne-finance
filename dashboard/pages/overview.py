@@ -60,11 +60,11 @@ def show():
             c.symbol,
             c.name,
             cm.fiscal_year,
-            MAX(CASE WHEN cm.metric_name = 'gross_margin' THEN cm.metric_value END) as gross_margin,
-            MAX(CASE WHEN cm.metric_name = 'operating_margin' THEN cm.metric_value END) as operating_margin,
-            MAX(CASE WHEN cm.metric_name = 'net_margin' THEN cm.metric_value END) as net_margin,
+            MAX(CASE WHEN cm.metric_name = 'gross_margin_pct' THEN cm.metric_value END) as gross_margin,
+            MAX(CASE WHEN cm.metric_name = 'operating_margin_pct' THEN cm.metric_value END) as operating_margin,
+            MAX(CASE WHEN cm.metric_name = 'net_margin_pct' THEN cm.metric_value END) as net_margin,
             MAX(CASE WHEN cm.metric_name = 'current_ratio' THEN cm.metric_value END) as current_ratio,
-            MAX(CASE WHEN cm.metric_name = 'revenue_growth' THEN cm.metric_value END) as revenue_growth
+            MAX(CASE WHEN cm.metric_name = 'revenue_yoy_pct' THEN cm.metric_value END) as revenue_growth
         FROM companies c
         JOIN calculated_metrics cm ON c.id = cm.company_id
         WHERE cm.fiscal_year = (
@@ -101,7 +101,7 @@ def show():
                 fig.add_trace(go.Bar(
                     name=name,
                     x=df['symbol'],
-                    y=df[col_name],  # ← NÃO usar fillna aqui!
+                    y=df[col_name],
                     text=df[col_name].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A"),
                     textposition='auto',
                     textfont=dict(
@@ -133,7 +133,7 @@ def show():
             fig.add_trace(go.Bar(
                 name='Current Ratio',
                 x=df['symbol'],
-                y=df['current_ratio'],  # ← NÃO usar fillna aqui!
+                y=df['current_ratio'],
                 yaxis='y',
                 marker_color='#636EFA',
                 text=df['current_ratio'].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A"),
@@ -151,7 +151,7 @@ def show():
             fig.add_trace(go.Scatter(
                 name='Revenue Growth (%)',
                 x=df['symbol'],
-                y=df['revenue_growth'],  # ← NÃO usar fillna aqui!
+                y=df['revenue_growth'],
                 yaxis='y2',
                 mode='lines+markers+text',
                 line=dict(color='#EF553B', width=3),
