@@ -131,7 +131,7 @@ The ETL service exposes a Flask API on port 5000:
 
 Monthly schedule via n8n:
 
-- **Cron Trigger**: 1st day of month, 2 AM UTC
+- **Cron Trigger**: 1st day of month, 8 AM BRT
 - **HTTP Request**: `POST http://etl-service:5000/run-etl`
 - **ETL executes**: `main.py` runs, logs results in `etl_runs` table
 - **Alert**: Send notification if status is not SUCCESS
