@@ -16,40 +16,26 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 from components.sidebar import render_sidebar
 from pages import overview, profitability, liquidity, all_metrics, system_health, production
 
-# CSS global
+# CSS global - SIMPLIFICADO
 st.markdown(
     """
     <style>
-    /* === RESPONSIVIDADE GERAL === */
+    /* === BÁSICO === */
     .main {
         padding: 0rem 1rem;
-        max-width: 100%;
-        overflow-x: hidden;
     }
     
-    /* Força container a respeitar largura */
     .block-container {
         padding-top: 2rem;
-        max-width: 100% !important;
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
     }
     
-    /* === SIDEBAR RETRÁTIL === */
-    section[data-testid="stSidebar"] {
-        width: 280px !important;
-        transition: width 0.3s ease;
+    header {
+        visibility: hidden;
     }
     
-    section[data-testid="stSidebar"][aria-expanded="false"] {
-        width: 0px !important;
-        margin-left: -280px;
-    }
-    
-    /* Botão de colapsar sidebar mais visível */
-    button[kind="header"] {
-        background-color: #1f6feb !important;
-        color: white !important;
+    /* === ESCONDER MENU DE PÁGINAS PADRÃO === */
+    [data-testid="stSidebarNav"] {
+        display: none !important;
     }
     
     /* === MÉTRICAS === */
@@ -58,37 +44,15 @@ st.markdown(
         padding: 15px;
         border-radius: 10px;
         border: 1px solid #4a4a55;
-        min-width: 150px;
     }
+    
     .stMetric label {
         font-size: 0.9rem !important;
         color: #b3b3b3;
-        white-space: nowrap;
     }
+    
     .stMetric [data-testid="stMetricValue"] {
         font-size: 1.8rem !important;
-    }
-    
-    /* === GRÁFICOS RESPONSIVOS === */
-    .js-plotly-plot, .plotly {
-        width: 100% !important;
-        height: auto !important;
-    }
-    
-    /* Força gráficos a não ultrapassarem container */
-    div[data-testid="stPlotlyChart"] {
-        width: 100% !important;
-        overflow: hidden;
-    }
-    
-    /* === COLUNAS RESPONSIVAS === */
-    div[data-testid="column"] {
-        min-width: 300px !important;
-    }
-    
-    /* === TABELAS === */
-    div[data-testid="stDataFrame"] {
-        overflow-x: auto;
     }
     
     /* === EXPANDERS === */
@@ -105,6 +69,7 @@ st.markdown(
         border-left: 4px solid #00CC96;
         margin: 10px 0;
     }
+    
     .warning-box {
         background-color: #2d1e1e;
         padding: 20px;
@@ -112,6 +77,7 @@ st.markdown(
         border-left: 4px solid #FFA15A;
         margin: 10px 0;
     }
+    
     .code-box {
         background-color: #1a1a1a;
         padding: 15px;
@@ -121,79 +87,6 @@ st.markdown(
         line-height: 1.6;
         white-space: pre;
         overflow-x: auto;
-    }
-    
-    /* === HEADER === */
-    header {visibility: hidden;}
-    
-    /* === ESCONDER MENU DE PÁGINAS PADRÃO === */
-    [data-testid="stSidebarNav"] {
-        display: none !important;
-    }
-    
-    /* === MEDIA QUERIES PARA RESPONSIVIDADE === */
-    
-    /* Tablets e telas médias */
-    @media (max-width: 1024px) {
-        .block-container {
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
-        }
-        
-        .stMetric {
-            min-width: 120px;
-        }
-        
-        div[data-testid="column"] {
-            min-width: 250px !important;
-        }
-    }
-    
-    /* Mobile */
-    @media (max-width: 768px) {
-        .main {
-            padding: 0rem 0.5rem;
-        }
-        
-        .block-container {
-            padding-left: 0.5rem !important;
-            padding-right: 0.5rem !important;
-        }
-        
-        /* Força colunas a ficarem empilhadas em mobile */
-        div[data-testid="column"] {
-            width: 100% !important;
-            min-width: 100% !important;
-        }
-        
-        .stMetric {
-            min-width: 100px;
-            padding: 10px;
-        }
-        
-        .stMetric [data-testid="stMetricValue"] {
-            font-size: 1.4rem !important;
-        }
-        
-        /* Ajusta altura dos gráficos em mobile */
-        .js-plotly-plot {
-            height: 300px !important;
-        }
-    }
-    
-    /* Telas muito pequenas */
-    @media (max-width: 480px) {
-        h1 {
-            font-size: 1.5rem !important;
-        }
-        
-        h2 {
-            font-size: 1.2rem !important;
-        }
-        
-        h3 {
-            font-size: 1rem !important;
-        }
     }
     </style>
     """,
