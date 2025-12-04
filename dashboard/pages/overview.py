@@ -101,7 +101,7 @@ def show():
                 fig.add_trace(go.Bar(
                     name=name,
                     x=df['symbol'],
-                    y=df[col_name].fillna(0),
+                    y=df[col_name],  # ← NÃO usar fillna aqui!
                     text=df[col_name].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A"),
                     textposition='auto',
                     textfont=dict(
@@ -133,7 +133,7 @@ def show():
             fig.add_trace(go.Bar(
                 name='Current Ratio',
                 x=df['symbol'],
-                y=df['current_ratio'].fillna(0),
+                y=df['current_ratio'],  # ← NÃO usar fillna aqui!
                 yaxis='y',
                 marker_color='#636EFA',
                 text=df['current_ratio'].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A"),
@@ -151,7 +151,7 @@ def show():
             fig.add_trace(go.Scatter(
                 name='Revenue Growth (%)',
                 x=df['symbol'],
-                y=df['revenue_growth'].fillna(0),
+                y=df['revenue_growth'],  # ← NÃO usar fillna aqui!
                 yaxis='y2',
                 mode='lines+markers+text',
                 line=dict(color='#EF553B', width=3),
