@@ -78,22 +78,13 @@ st.markdown(
         font-size: 1.8rem !important;
     }
     
-    /* === TABELA DETAILED METRICS - CORRIGE BUG DE ZOOM === */
+    /* === TABELA DETAILED METRICS - SEM SCROLL, CRESCE NATURALMENTE === */
     div[data-testid="stDataFrame"] {
-        overflow-x: auto !important;
         width: 100% !important;
     }
     
     div[data-testid="stDataFrame"] > div {
-        overflow-x: auto !important;
-        max-width: 100% !important;
-    }
-    
-    /* Força scroll horizontal se necessário */
-    .dataframe {
-        display: block !important;
-        overflow-x: auto !important;
-        white-space: nowrap !important;
+        width: 100% !important;
     }
     
     /* === GRÁFICOS - LARGURA MÍNIMA PARA EVITAR TEXTOS VERTICAIS === */
