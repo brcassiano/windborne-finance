@@ -11,14 +11,14 @@ st.set_page_config(
 )
 
 import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 from components.sidebar import render_sidebar
 from pages import overview, profitability, liquidity, all_metrics, system_health, production
 
-
 # CSS global
-st.markdown("""
+st.markdown(
+    """
     <style>
     .main {
         padding: 0rem 1rem;
@@ -66,8 +66,20 @@ st.markdown("""
     }
     header {visibility: hidden;}
     .block-container {padding-top: 2rem;}
+
+    /* === ESCONDER MENU PADRÃO DO APP NA SIDEBAR === */
+    /* Navegação multipage nativa */
+    [data-testid="stSidebarNav"] {
+        display: none !important;
+    }
+    /* Bloco superior onde aparece o título "app" */
+    section[data-testid="stSidebar"] > div:nth-of-type(1) {
+        display: none !important;
+    }
     </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
 
 def check_auto_refresh():
@@ -86,7 +98,7 @@ def check_auto_refresh():
     if "last_refresh_date" not in st.session_state:
         st.session_state.last_refresh_date = now.date()
 
-    # 8h30 local (São Paulo) – assume servidor com timezone correto
+    # 8h30 local (São Paulo)
     refresh_time = time(8, 30)
 
     if now.time() > refresh_time and st.session_state.last_refresh_date < now.date():

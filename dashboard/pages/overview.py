@@ -142,7 +142,7 @@ def show():
             st.plotly_chart(fig, use_container_width=True)
 
         # ---------------- Financial Health ----------------
-        with col2:
+                with col2:
             st.markdown("### 📊 Financial Health")
 
             fig = go.Figure()
@@ -160,7 +160,9 @@ def show():
                     ),
                     textposition="auto",
                     textfont=dict(
-                        size=14, color="white", family="Arial Black"
+                        size=14,
+                        color="white",
+                        family="Arial Black",
                     ),
                     customdata=df[["fiscal_year"]],
                     hovertemplate=(
@@ -184,10 +186,14 @@ def show():
                     text=df["revenue_growth"].apply(
                         lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A"
                     ),
-                    textposition="top center",
+                    textposition="top center",  # pode mudar para 'top right' se preferir
                     textfont=dict(
-                        size=14, color="white", family="Arial Black"
+                        size=12,               # menor para caber melhor
+                        color="white",
+                        family="Arial Black",
                     ),
+                    texttemplate="%{text}",
+                    cliponaxis=False,         # impede que o texto seja cortado
                     customdata=df[["fiscal_year"]],
                     hovertemplate=(
                         "<b>%{x}</b><br>"
@@ -215,13 +221,14 @@ def show():
                     x=1,
                 ),
                 hovermode="x unified",
-                margin=dict(r=80),  # margem maior para não cortar o 7.8%
+                margin=dict(l=40, r=130, t=40, b=40),  # margem direita bem maior
             )
 
-            # ajuda o Plotly a ajustar margens automaticamente
+            fig.update_xaxes(automargin=True)
             fig.update_yaxes(automargin=True)
 
             st.plotly_chart(fig, use_container_width=True)
+
 
         st.markdown("---")
 
