@@ -8,11 +8,6 @@ st.set_page_config(
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
-    menu_items={
-        'Get Help': 'https://github.com/brcassiano/windborne-finance',
-        'Report a bug': 'https://github.com/brcassiano/windborne-finance/issues',
-        'About': '# WindBorne Finance Dashboard\nReal-time financial metrics for TEL, ST, and DD'
-    }
 )
 
 import warnings
@@ -25,26 +20,84 @@ from pages import overview, profitability, liquidity, all_metrics, system_health
 st.markdown(
     """
     <style>
+    /* === RESPONSIVIDADE GERAL === */
     .main {
         padding: 0rem 1rem;
+        max-width: 100%;
+        overflow-x: hidden;
     }
+    
+    /* Força container a respeitar largura */
+    .block-container {
+        padding-top: 2rem;
+        max-width: 100% !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+    
+    /* === SIDEBAR RETRÁTIL === */
+    section[data-testid="stSidebar"] {
+        width: 280px !important;
+        transition: width 0.3s ease;
+    }
+    
+    section[data-testid="stSidebar"][aria-expanded="false"] {
+        width: 0px !important;
+        margin-left: -280px;
+    }
+    
+    /* Botão de colapsar sidebar mais visível */
+    button[kind="header"] {
+        background-color: #1f6feb !important;
+        color: white !important;
+    }
+    
+    /* === MÉTRICAS === */
     .stMetric {
         background-color: #262730;
         padding: 15px;
         border-radius: 10px;
         border: 1px solid #4a4a55;
+        min-width: 150px;
     }
     .stMetric label {
         font-size: 0.9rem !important;
         color: #b3b3b3;
+        white-space: nowrap;
     }
     .stMetric [data-testid="stMetricValue"] {
         font-size: 1.8rem !important;
     }
+    
+    /* === GRÁFICOS RESPONSIVOS === */
+    .js-plotly-plot, .plotly {
+        width: 100% !important;
+        height: auto !important;
+    }
+    
+    /* Força gráficos a não ultrapassarem container */
+    div[data-testid="stPlotlyChart"] {
+        width: 100% !important;
+        overflow: hidden;
+    }
+    
+    /* === COLUNAS RESPONSIVAS === */
+    div[data-testid="column"] {
+        min-width: 300px !important;
+    }
+    
+    /* === TABELAS === */
+    div[data-testid="stDataFrame"] {
+        overflow-x: auto;
+    }
+    
+    /* === EXPANDERS === */
     div[data-testid="stExpander"] {
         border: 1px solid #4a4a55;
         border-radius: 8px;
     }
+    
+    /* === BOXES CUSTOMIZADOS === */
     .production-box {
         background-color: #1e1e1e;
         padding: 20px;
@@ -69,13 +122,78 @@ st.markdown(
         white-space: pre;
         overflow-x: auto;
     }
+    
+    /* === HEADER === */
     header {visibility: hidden;}
-    .block-container {padding-top: 2rem;}
-
-    /* === ESCONDER APENAS O MENU DE PÁGINAS PADRÃO DO STREAMLIT === */
-    /* Remove o container de navegação de páginas nativo */
+    
+    /* === ESCONDER MENU DE PÁGINAS PADRÃO === */
     [data-testid="stSidebarNav"] {
         display: none !important;
+    }
+    
+    /* === MEDIA QUERIES PARA RESPONSIVIDADE === */
+    
+    /* Tablets e telas médias */
+    @media (max-width: 1024px) {
+        .block-container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+        
+        .stMetric {
+            min-width: 120px;
+        }
+        
+        div[data-testid="column"] {
+            min-width: 250px !important;
+        }
+    }
+    
+    /* Mobile */
+    @media (max-width: 768px) {
+        .main {
+            padding: 0rem 0.5rem;
+        }
+        
+        .block-container {
+            padding-left: 0.5rem !important;
+            padding-right: 0.5rem !important;
+        }
+        
+        /* Força colunas a ficarem empilhadas em mobile */
+        div[data-testid="column"] {
+            width: 100% !important;
+            min-width: 100% !important;
+        }
+        
+        .stMetric {
+            min-width: 100px;
+            padding: 10px;
+        }
+        
+        .stMetric [data-testid="stMetricValue"] {
+            font-size: 1.4rem !important;
+        }
+        
+        /* Ajusta altura dos gráficos em mobile */
+        .js-plotly-plot {
+            height: 300px !important;
+        }
+    }
+    
+    /* Telas muito pequenas */
+    @media (max-width: 480px) {
+        h1 {
+            font-size: 1.5rem !important;
+        }
+        
+        h2 {
+            font-size: 1.2rem !important;
+        }
+        
+        h3 {
+            font-size: 1rem !important;
+        }
     }
     </style>
     """,
@@ -99,7 +217,7 @@ def check_auto_refresh():
     if "last_refresh_date" not in st.session_state:
         st.session_state.last_refresh_date = now.date()
 
-    # 8h30 local (São Paulo) – assume servidor com timezone correto
+    # 8h30 local (São Paulo)
     refresh_time = time(8, 30)
 
     if now.time() > refresh_time and st.session_state.last_refresh_date < now.date():

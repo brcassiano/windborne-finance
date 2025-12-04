@@ -17,7 +17,7 @@ def show():
     # Top-level metrics
     st.markdown("### 📈 Key Statistics")
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4, gap="small")
 
     with col1:
         companies_count = pd.read_sql(
@@ -94,7 +94,7 @@ def show():
         st.markdown("---")
 
         # Two column layout for charts
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2, gap="medium")
 
         # ---------------- Profitability ----------------
         with col1:
@@ -144,13 +144,26 @@ def show():
                     xanchor="right",
                     x=1,
                 ),
-                margin=dict(l=40, r=130, t=40, b=40),  # mesmas margens do gráfico direito
+                margin=dict(l=40, r=130, t=40, b=40),
+                autosize=True,
+                xaxis=dict(
+                    fixedrange=False,
+                    automargin=True,
+                ),
+                yaxis=dict(
+                    fixedrange=False,
+                    automargin=True,
+                ),
             )
 
             fig.update_xaxes(automargin=True)
             fig.update_yaxes(automargin=True)
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(
+                fig,
+                use_container_width=True,
+                config={"responsive": True, "displayModeBar": False},
+            )
 
         # ---------------- Financial Health ----------------
         with col2:
@@ -217,11 +230,12 @@ def show():
             fig.update_layout(
                 height=400,
                 xaxis_title="Company",
-                yaxis=dict(title="Current Ratio", side="left"),
+                yaxis=dict(title="Current Ratio", side="left", automargin=True),
                 yaxis2=dict(
                     title="Revenue Growth (%)",
                     overlaying="y",
                     side="right",
+                    automargin=True,
                 ),
                 template="plotly_dark",
                 legend=dict(
@@ -233,12 +247,21 @@ def show():
                 ),
                 hovermode="x unified",
                 margin=dict(l=40, r=130, t=40, b=40),
+                autosize=True,
+                xaxis=dict(
+                    fixedrange=False,
+                    automargin=True,
+                ),
             )
 
             fig.update_xaxes(automargin=True)
             fig.update_yaxes(automargin=True)
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(
+                fig,
+                use_container_width=True,
+                config={"responsive": True, "displayModeBar": False},
+            )
 
         st.markdown("---")
 
