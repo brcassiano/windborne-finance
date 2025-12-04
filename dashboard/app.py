@@ -2,39 +2,22 @@
 import streamlit as st
 from datetime import datetime, time
 
-# Page config DEVE ser a PRIMEIRA coisa (antes de qualquer outro código)
+# Page config deve ser a primeira coisa
 st.set_page_config(
     page_title="WindBorne Finance",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# AGORA sim, silenciar warnings (depois do set_page_config)
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
 
-# Imports do projeto
 from components.sidebar import render_sidebar
 from pages import overview, profitability, liquidity, all_metrics, system_health, production
 
 
-# OCULTAR MENU HAMBURGER E PÁGINAS AUTOMÁTICAS
-st.markdown("""
-    <style>
-        /* Ocultar menu hamburger */
-        [data-testid="stSidebarNav"] {display: none;}
-        
-        /* Ocultar header do Streamlit */
-        header {visibility: hidden;}
-        
-        /* Ajustar padding do topo */
-        .block-container {padding-top: 2rem;}
-    </style>
-""", unsafe_allow_html=True)
-
-
-# Custom CSS
+# CSS global
 st.markdown("""
     <style>
     .main {
@@ -81,43 +64,47 @@ st.markdown("""
         white-space: pre;
         overflow-x: auto;
     }
+    header {visibility: hidden;}
+    .block-container {padding-top: 2rem;}
     </style>
 """, unsafe_allow_html=True)
 
 
-# AUTO-REFRESH: Verificar se precisa recarregar dados (1x por dia às 8:30 AM)
 def check_auto_refresh():
-    """Check if data needs to be refreshed based on ETL schedule"""
+    """
+    Recarrega dados 1x por dia após o ETL (8h SP),
+    se o toggle 'Auto' estiver ligado.
+    """
     now = datetime.now()
-    
-    # Inicializar session state
-    if 'last_refresh_date' not in st.session_state:
+
+    if "auto_refresh" not in st.session_state:
+        st.session_state.auto_refresh = True
+
+    if not st.session_state.auto_refresh:
+        return
+
+    if "last_refresh_date" not in st.session_state:
         st.session_state.last_refresh_date = now.date()
-    
-    # Verificar se passou das 8:30 AM e ainda não atualizou hoje
-    refresh_time = time(8, 30)  # 8:30 AM (30min após o ETL às 8:00 AM)
-    
+
+    # 8h30 local (São Paulo) – assume servidor com timezone correto
+    refresh_time = time(8, 30)
+
     if now.time() > refresh_time and st.session_state.last_refresh_date < now.date():
         st.session_state.last_refresh_date = now.date()
-        st.cache_data.clear()  # Limpar cache do Streamlit
-        st.rerun()  # Recarregar aplicação
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.experimental_rerun()
 
 
 def main():
-    """Main application logic"""
-    
-    # Verificar auto-refresh
     check_auto_refresh()
-    
-    # Header
+
     st.markdown("# 📊 WindBorne Finance Dashboard")
     st.markdown("### Real-time financial metrics for TEL, ST, and DD")
     st.markdown("---")
-    
-    # Render sidebar and get selected page
+
     page = render_sidebar()
-    
-    # Route to appropriate page
+
     if page == "📊 Overview":
         overview.show()
     elif page == "💰 Profitability":

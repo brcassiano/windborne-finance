@@ -91,12 +91,15 @@ def show():
                 template="plotly_dark"
             )
             fig.update_layout(
-                height=400,
-                xaxis_title="Fiscal Year",
-                yaxis_title=title,
-                legend_title="Company",
-                hovermode='x unified'
-            )
+            height=430,
+            xaxis_title="Company",
+            yaxis=dict(title="Current Ratio", side='left'),
+            yaxis2=dict(title="Revenue Growth (%)", overlaying='y', side='right'),
+            template="plotly_dark",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            hovermode='x unified',
+            margin=dict(l=40, r=80, t=40, b=40)  # aumenta r para 80
+        )
             fig.update_traces(line=dict(width=3), marker=dict(size=10))
             st.plotly_chart(fig, use_container_width=True)
             
