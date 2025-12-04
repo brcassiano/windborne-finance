@@ -1,26 +1,79 @@
-# WindBorne Finance Automation
+﻿# WindBorne Finance Automation
 
 Automated financial analysis pipeline using Alpha Vantage API, PostgreSQL, n8n, and Streamlit.
 
 ## Tech Stack
 
-- **ETL**: Python 3.11
+- **ETL**: Python 3.11 + Flask API
 - **Database**: PostgreSQL 15
-- **Orchestration**: n8n
-- **Dashboard**: Streamlit
-- **Monitoring**: Grafana
+- **Orchestration**: n8n (external)
+- **Dashboard**: Streamlit (multi-page)
 - **Deployment**: Easypanel (Docker)
+
+---
+
+## Project Structure
+
+```
+windborne-finance/
+|-- .env.example                    # Environment variables template
+|-- .gitignore
+|-- README.md
+|
+|-- dashboard/                      # Streamlit Dashboard
+|   |-- app.py                      # Main entry point
+|   |-- database.py                 # Database connection helper
+|   |-- Dockerfile
+|   |-- requirements.txt
+|   |-- components/
+|   |   |-- __init__.py
+|   |   +-- sidebar.py              # Sidebar navigation
+|   +-- pages/
+|       |-- __init__.py
+|       |-- overview.py             # Main overview page
+|       |-- profitability.py        # Profitability metrics
+|       |-- liquidity.py            # Liquidity metrics
+|       |-- production.py           # Production metrics
+|       |-- all_metrics.py          # All metrics table
+|       +-- system_health.py        # ETL monitoring & health
+|
+|-- etl/                            # ETL Pipeline
+|   |-- api.py                      # Flask API for ETL control
+|   |-- main.py                     # ETL pipeline entrypoint
+|   |-- calculate_metrics.py        # Standalone metrics calculation
+|   |-- config.py                   # Pydantic settings
+|   |-- Dockerfile
+|   |-- requirements.txt
+|   |-- extractors/
+|   |   |-- __init__.py
+|   |   +-- alpha_vantage.py        # Alpha Vantage API client
+|   |-- transformers/
+|   |   |-- __init__.py
+|   |   +-- financial_data.py       # Data transformation & validation
+|   |-- loaders/
+|   |   |-- __init__.py
+|   |   +-- postgres_loader.py      # PostgreSQL UPSERT loader
+|   +-- calculators/
+|       |-- __init__.py
+|       +-- financial_metrics.py    # Financial metrics calculation
+|
++-- init-db/
+    +-- schema.sql                  # PostgreSQL schema, views, seed data
+```
+
+---
 
 ## Quick Deploy on Easypanel
 
 ### Prerequisites
+
 1. Easypanel installed on VPS
 2. Alpha Vantage API key (free): https://www.alphavantage.co/support/#api-key
 
 ### Steps
 
-1. **Create PostgreSQL service** (Template)
-2. **Execute SQL schema** via pgWeb (file: `init-db/schema.sql`)
+1. **Create PostgreSQL service** (use Easypanel template)
+2. **Execute SQL schema** via pgWeb or psql (file: `init-db/schema.sql`)
 3. **Deploy ETL App**:
    - Create App from GitHub
    - Point to this repo
@@ -29,13 +82,14 @@ Automated financial analysis pipeline using Alpha Vantage API, PostgreSQL, n8n, 
 4. **Deploy Dashboard**:
    - Create App from GitHub
    - Dockerfile path: `dashboard/Dockerfile`
-5. **Import n8n workflows** (file: `n8n/workflows/*.json`)
-6. **Import Grafana dashboard** (file: `grafana/dashboards/*.json`)
+   - Expose port 8501
+5. **Configure n8n** (optional, for scheduled runs)
 
 ### Environment Variables
 
-For ETL App:
-```env
+**ETL App** (`etl/`):
+
+```
 POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
 POSTGRES_DB=windborne_finance
@@ -44,10 +98,12 @@ POSTGRES_PASSWORD=your_password_here
 ALPHA_VANTAGE_API_KEY=your_api_key_here
 TARGET_COMPANIES=TEL,ST,DD
 YEARS_TO_FETCH=3
+ALPHA_VANTAGE_DELAY=15
 ```
 
-For Dashboard App:
-```env
+**Dashboard App** (`dashboard/`):
+
+```
 POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
 POSTGRES_DB=windborne_finance
@@ -55,94 +111,137 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_password_here
 ```
 
-## Project Structure
+---
 
-Use the tree below to quickly visualise the repository layout:
+## ETL API Endpoints
 
-```text
-etl/
-├── extractors/         # Alpha Vantage API client
-├── transformers/       # Data transformation
-├── loaders/            # PostgreSQL loader
-├── calculators/        # Financial metrics
-├── main.py             # ETL pipeline entrypoint
-├── api.py              # Flask API for ETL control
-├── requirements.txt
-├── Dockerfile
-dashboard/
-├── app.py              # Streamlit dashboard
-├── requirements.txt
-├── Dockerfile
-init-db/
-├── schema.sql          # SQL schema
-grafana/
-└── dashboards/         # Monitoring dashboards
-```
+The ETL service exposes a Flask API on port 5000:
+
+| Endpoint    | Method | Description                     |
+|-------------|--------|---------------------------------|
+| `/health`   | GET    | Health check                    |
+| `/run-etl`  | POST   | Trigger ETL pipeline execution  |
+| `/status`   | GET    | Get last ETL run status from DB |
 
 ---
 
-## Production Deployment & Explainers
+## Production Deployment and Explainers
 
 ### 1. Scheduling (n8n Workflow)
 
 Monthly schedule via n8n:
-- Cron Trigger (monthly, e.g. 1st day, 2 AM UTC)
-- HTTP Request: `POST http://etl-service:5000/run-etl`
-- ETL executes `main.py`, logs results in `etl_runs`
-- Alert if status != 'SUCCESS'
 
-Pseudocode:
+- **Cron Trigger**: 1st day of month, 2 AM UTC
+- **HTTP Request**: `POST http://etl-service:5000/run-etl`
+- **ETL executes**: `main.py` runs, logs results in `etl_runs` table
+- **Alert**: Send notification if status is not SUCCESS
+
+**Workflow Diagram:**
+
+```
+[CRON Trigger] -> [HTTP Request: /run-etl] -> [ETL Pipeline] -> [Log Results] -> [Alert on Failure]
+```
+
+**Pseudocode:**
+
 ```python
 def trigger_monthly():
-   response = requests.post("http://etl-service:5000/run-etl")
-   if response.status_code != 200:
-      send_slack_alert("ETL Failed")
+    response = requests.post("http://etl-service:5000/run-etl")
+    if response.status_code != 200:
+        send_slack_alert("ETL Failed")
 ```
 
-Workflow Diagram:
-```
-[CRON Trigger] → [HTTP Request: /run-etl] → [ETL Pipeline] → [Log Results] → [Alert on Failure]
-```
+### 2. API Rate Limit and Scaling
 
-### 2. API Rate Limit & Scaling
+| Scenario      | Companies | Statements | Total Calls |
+|---------------|-----------|------------|-------------|
+| Current       | 3         | 3          | 9           |
+| 100 Companies | 100       | 3          | 300         |
 
-- Current: 3 companies × 3 statements = 9 calls/run
-- For 100 companies: 100 × 3 = 300 calls needed
-- Alpha Vantage limit (free): 25 calls/day
-- Strategy: rotate companies, e.g. 25/day, full refresh every 4 days
+- **Alpha Vantage free tier**: 25 calls/day, 5 calls/min
+- **Strategy for 100+ companies**: Rotate companies daily (25/day = full refresh every 4 days)
+- **Rate limiting**: Use `ALPHA_VANTAGE_DELAY` (default 15s between calls)
+- **Tracking**: API failures logged in `etl_runs` table
 
-Notes:
-- Respect 5 calls/min using `ALPHA_VANTAGE_DELAY`
-- Track API failures in `etl_runs` for monitoring
+### 3. Executive Access via Google Sheets
 
-### 3. Exec Access via Google Sheets
+**Options:**
 
-Options:
-- Direct PostgreSQL connection (fast, needs secure network)
-- CSV export (simple, cron-based)
-- Google Sheets API (recommended for execs)
+| Method            | Pros                    | Cons                    |
+|-------------------|-------------------------|-------------------------|
+| Direct PostgreSQL | Real-time, fast         | Requires secure network |
+| CSV Export (cron) | Simple, no dependencies | Stale data              |
+| Google Sheets API | Familiar UI for execs   | Requires setup          |
 
-Example CSV export:
+**Example CSV export:**
+
 ```bash
 psql -h postgres -U user -d windborne_finance \
-  -c "COPY (SELECT * FROM v_latest_metrics) TO STDOUT CSV" > metrics.csv
+  -c "COPY (SELECT * FROM v_latest_metrics) TO STDOUT CSV HEADER" > metrics.csv
 ```
 
-### 4. Monitoring & Alerts
+### 4. Monitoring and Alerts
 
-- ETL runs logged in `etl_runs` table
-- Dashboard shows success rate, execution time, API failures
-- Add Slack/email alerts for high failure rate or slow runs
+**Built-in monitoring:**
 
-Example alert logic:
+- ETL runs logged in `etl_runs` table with status, duration, records processed
+- Dashboard page `system_health.py` shows:
+  - Success rate
+  - Execution time trends
+  - API failure counts
+  - Last run details
+
+**Alert logic (to implement in n8n):**
+
 ```python
 if api_failures > 5:
-   send_slack_alert("ETL: High API failures")
+    send_slack_alert("ETL: High API failures")
 if execution_time_seconds > 300:
-   send_slack_alert("ETL: Slow run detected")
+    send_slack_alert("ETL: Slow run detected")
 ```
+
+---
+
+## Database Schema
+
+Key tables:
+
+- `companies` - Company symbols and metadata
+- `financial_statements` - Raw financial data (JSONB)
+- `calculated_metrics` - Computed metrics per year
+- `etl_runs` - ETL execution logs
+
+Key views:
+
+- `v_latest_metrics` - Latest metrics per company
+- `v_etl_health` - ETL health summary
+
+---
+
+## Local Development
+
+```bash
+# Clone
+git clone https://github.com/brcassiano/windborne-finance.git
+cd windborne-finance
+
+# Set up environment
+cp .env.example .env
+# Edit .env with your credentials
+
+# Run ETL
+cd etl
+pip install -r requirements.txt
+python main.py
+
+# Run Dashboard
+cd dashboard
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+---
 
 ## License
 
 MIT
-
