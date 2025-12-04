@@ -2,8 +2,6 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN echo '<meta property="og:title" content="WindBorne Finance Dashboard">' > /app/meta.html
-
 # Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends gcc libpq-dev && \
