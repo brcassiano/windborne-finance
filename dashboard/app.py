@@ -1,3 +1,7 @@
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings('ignore', message='.*to_pydatetime.*')
+
 """Main Streamlit application"""
 import streamlit as st
 from components.sidebar import render_sidebar

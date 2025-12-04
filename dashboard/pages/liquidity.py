@@ -90,9 +90,9 @@ def show():
         fig.add_trace(go.Bar(
             name='Current Ratio',
             x=df_latest['symbol'],
-            y=df_latest['current_ratio'],
+            y=df_latest['current_ratio'].fillna(0),
             marker_color='#636EFA',
-            text=df_latest['current_ratio'].round(2),
+            text=df_latest['current_ratio'].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A"),
             textposition='auto',
             textfont=dict(size=14, color='white', family='Arial Black')
         ))
@@ -101,9 +101,9 @@ def show():
         fig.add_trace(go.Bar(
             name='Quick Ratio',
             x=df_latest['symbol'],
-            y=df_latest['quick_ratio'],
+            y=df_latest['quick_ratio'].fillna(0),
             marker_color='#00CC96',
-            text=df_latest['quick_ratio'].round(2),
+            text=df_latest['quick_ratio'].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A"),
             textposition='auto',
             textfont=dict(size=14, color='white', family='Arial Black')
         ))
@@ -112,9 +112,9 @@ def show():
         fig.add_trace(go.Bar(
             name='Cash Ratio',
             x=df_latest['symbol'],
-            y=df_latest['cash_ratio'],
+            y=df_latest['cash_ratio'].fillna(0),
             marker_color='#FFA15A',
-            text=df_latest['cash_ratio'].round(2),
+            text=df_latest['cash_ratio'].apply(lambda x: f"{x:.2f}" if pd.notna(x) else "N/A"),
             textposition='auto',
             textfont=dict(size=14, color='white', family='Arial Black')
         ))
