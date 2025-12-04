@@ -4,11 +4,34 @@ from datetime import datetime, time
 
 # Page config deve ser a primeira coisa
 st.set_page_config(
-    page_title="WindBorne Finance",
+    page_title="WindBorne Finance Dashboard",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://github.com/brcassiano/windborne-finance',
+        'Report a bug': 'https://github.com/brcassiano/windborne-finance/issues',
+        'About': '# WindBorne Finance Dashboard\nReal-time financial metrics for TEL, ST, and DD'
+    }
 )
+
+# Linkks and preview Meta Tags
+st.markdown("""
+    <head>
+        <meta property="og:title" content="WindBorne Finance Dashboard" />
+        <meta property="og:description" content="Real-time financial metrics and analysis for TE Connectivity, Sensata Technologies, and DuPont de Nemours" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://windborne-finance-dashboard.wuf9gl.easypanel.host/" />
+        <meta property="og:image" content="https://windborne-finance-dashboard.wuf9gl.easypanel.host/~/+/favicon.png" />
+        
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="WindBorne Finance Dashboard" />
+        <meta name="twitter:description" content="Real-time financial metrics for TEL, ST, and DD" />
+        
+        <meta name="description" content="Financial analysis dashboard with profitability margins, liquidity ratios, and growth metrics for public companies" />
+        <meta name="keywords" content="finance, dashboard, metrics, alpha vantage, streamlit" />
+    </head>
+""", unsafe_allow_html=True)
 
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
