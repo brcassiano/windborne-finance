@@ -65,7 +65,7 @@ windborne-finance/
 
 ## Quick Deploy on Easypanel
 
-### Prerequisites
+### Pre-requisites
 
 1. Easypanel installed on VPS
 2. Alpha Vantage API key (free): https://www.alphavantage.co/support/#api-key
@@ -98,7 +98,7 @@ POSTGRES_PASSWORD=your_password_here
 ALPHA_VANTAGE_API_KEY=your_api_key_here
 TARGET_COMPANIES=TEL,ST,DD
 YEARS_TO_FETCH=3
-ALPHA_VANTAGE_DELAY=15
+ALPHA_VANTAGE_DELAY=12
 ```
 
 **Dashboard App** (`dashboard/`):
@@ -124,6 +124,10 @@ The ETL service exposes a Flask API on port 5000:
 | `/status`   | GET    | Get last ETL run status from DB |
 
 ---
+
+## Live Demo
+
+- Dashboard: https://windborne-finance-dashboard.wuf9gl.easypanel.host/
 
 ## Production Deployment and Explainers
 
